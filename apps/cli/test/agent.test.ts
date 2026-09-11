@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { isLocalBind, probeHost } from "../src/commands/agent";
+import { isAgentProcess, isLocalBind, probeHost } from "../src/commands/agent";
 
 describe("probeHost", () => {
   test("wildcards become loopback, IPv6 literals get brackets, IPv4 and names pass", () => {
@@ -88,5 +88,25 @@ describe("isLocalBind", () => {
     for (const b of ["example.com", "127.attacker.example", "10.0.0.9", "203.0.113.1", ""]) {
       expect(isLocalBind(b, ifaces)).toBe(false);
     }
+  });
+});
+
+describe("isAgentProcess", () => {
+  test("only a process whose command line is a cctr agent run counts", () => {
+    const ps = (table: Record<number, string | null>) => (pid: number) => table[pid] ?? null;
+    const t = ps({
+      1: "/root/.local/bin/cctr agent run --port 7411 --bind 127.0.0.1",
+      2: "cctr agent run",
+      3: "python3 -m http.server 7411",
+      4: "/usr/bin/cctr sessions list",
+      5: "/opt/notcctr agent run",
+      6: null,
+    });
+    expect(isAgentProcess(1, t)).toBe(true);
+    expect(isAgentProcess(2, t)).toBe(true);
+    expect(isAgentProcess(3, t)).toBe(false);
+    expect(isAgentProcess(4, t)).toBe(false);
+    expect(isAgentProcess(5, t)).toBe(false);
+    expect(isAgentProcess(6, t)).toBe(false);
   });
 });

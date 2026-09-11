@@ -170,14 +170,35 @@ function canonicalIp(addr: string): string {
   }
 }
 
-/** kill(pid, 0) succeeds only for a process of the same uid (or as root): alive, and ours. */
+/**
+ * kill(pid, 0) succeeds only for a process of the same uid (or as root): alive, and ours.
+ * Only a positive pid is ever asked about: 0 would mean our process group and -1 every
+ * process, and a later stop would signal exactly that.
+ */
 function alive(pid: number): boolean {
+  if (!Number.isSafeInteger(pid) || pid <= 0) return false;
   try {
     process.kill(pid, 0);
     return true;
   } catch {
     return false;
   }
+}
+
+/**
+ * Whether the OS says `pid` is a cctr agent. /healthz can claim any pid; before that pid
+ * is written to the state file (and later sent SIGTERM by stop) the process table must
+ * agree. `ps` is used because /proc is Linux-only.
+ */
+export function isAgentProcess(pid: number, ps = readPsArgs): boolean {
+  const args = ps(pid);
+  return args !== null && /(^|\/)cctr(\s|$)/.test(args.split(" ")[0] ?? "") && /\bagent\s+run\b/.test(args);
+}
+
+function readPsArgs(pid: number): string | null {
+  const r = Bun.spawnSync(["ps", "-o", "args=", "-p", String(pid)], { stdout: "pipe", stderr: "ignore" });
+  const out = r.stdout.toString().trim();
+  return r.exitCode === 0 && out ? out : null;
 }
 
 /** The unauthenticated /healthz of whatever listens at bind:port; null when nothing answers like an agent. */
@@ -209,7 +230,7 @@ async function liveState(): Promise<AgentState | null> {
  */
 async function adoptOrphan(bind: string, port: number): Promise<AgentState | null> {
   const h = await healthOf(bind, port);
-  if (h?.name !== "cctr" || typeof h.pid !== "number" || !alive(h.pid)) return null;
+  if (h?.name !== "cctr" || typeof h.pid !== "number" || !alive(h.pid) || !isAgentProcess(h.pid)) return null;
   const st: AgentState = {
     pid: h.pid,
     bind,
