@@ -47,7 +47,7 @@ export class LocalSource implements Source {
       name: "cctr",
       version: this.version,
       schemaVersion: SCHEMA_VERSION,
-      host: this.host === "local" ? hostname() : this.host,
+      host: this.host === "local" ? machineId() : this.host,
       projectsDir: this.dir,
     };
   }
@@ -79,4 +79,9 @@ export class LocalSource implements Source {
     if (!f) return;
     yield* readRecords(f.file);
   }
+}
+
+/** What this machine is called across the fleet: hostname unless CCX_MACHINE says otherwise (ccx's setting, not a cctr one). */
+export function machineId(env: NodeJS.ProcessEnv = process.env): string {
+  return env.CCX_MACHINE?.trim() || hostname();
 }

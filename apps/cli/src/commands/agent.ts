@@ -66,7 +66,7 @@ export function registerAgent(program: Command): void {
       // the child writes its state file once it is listening; wait for that rather than trusting the spawn
       const st = await waitFor(() => liveState(), 5000);
       if (!st) throw new CliError("agent did not come up within 5s", 1);
-      json({ pid: st.pid, url: `http://${st.bind}:${st.port}`, startedAt: st.startedAt });
+      json({ pid: st.pid, url: `http://${probeHost(st.bind)}:${st.port}`, startedAt: st.startedAt });
     });
 
   agent
@@ -100,7 +100,7 @@ export function registerAgent(program: Command): void {
       json({
         running: true,
         pid: st.pid,
-        url: `http://${st.bind}:${st.port}`,
+        url: `http://${probeHost(st.bind)}:${st.port}`,
         startedAt: st.startedAt,
         version: st.version,
       });
@@ -131,9 +131,8 @@ async function stoppableState(): Promise<AgentState | null> {
 
 /** GetMeta as a plain Connect JSON POST: no client to build for a liveness probe. */
 async function metaOf(st: AgentState): Promise<{ name?: string; pid?: number } | null> {
-  const host = st.bind === "0.0.0.0" ? "127.0.0.1" : st.bind;
   try {
-    const res = await fetch(`http://${host}:${st.port}/cctr.v1.TranscriptService/GetMeta`, {
+    const res = await fetch(`http://${probeHost(st.bind)}:${st.port}/cctr.v1.TranscriptService/GetMeta`, {
       method: "POST",
       headers: { authorization: "Bearer " + st.token, "content-type": "application/json" },
       body: "{}",
@@ -155,6 +154,12 @@ async function liveState(): Promise<AgentState | null> {
 }
 
 /** The agent removes its own state on SIGTERM and `stop` removes it too; whoever is second finds it gone. */
+/** Where to reach an agent bound to `bind` from this machine: wildcards become loopback, IPv6 literals get brackets. */
+export function probeHost(bind: string): string {
+  if (bind === "0.0.0.0" || bind === "::" || bind === "") return "127.0.0.1";
+  return bind.includes(":") ? `[${bind}]` : bind;
+}
+
 function clearState(onlyPid?: number): void {
   const p = agentStatePath();
   if (!existsSync(p)) return;

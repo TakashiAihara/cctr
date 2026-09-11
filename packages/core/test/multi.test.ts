@@ -174,3 +174,14 @@ describe("lines", () => {
     expect(await collect([])).toEqual([]);
   });
 });
+
+describe("machineId", () => {
+  test("CCX_MACHINE overrides the hostname; blank does not", async () => {
+    const { machineId } = await import("../src");
+    expect(machineId({ CCX_MACHINE: "fleet-a" })).toBe("fleet-a");
+    expect(machineId({ CCX_MACHINE: "  " })).not.toBe("  ");
+    expect(machineId({})).toBeString();
+    const src = new LocalSource({ projectsDir: FIX });
+    expect((await src.meta()).host).toBe(machineId());
+  });
+});
