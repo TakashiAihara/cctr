@@ -49,3 +49,16 @@ describe("remotes", () => {
     expect(r.pi?.kind).toBe("ssh");
   });
 });
+
+import { isLoopbackUrl } from "../src/commands/remote";
+
+describe("isLoopbackUrl", () => {
+  test("literal loopback only; a hostname starting with 127. is not loopback", () => {
+    expect(isLoopbackUrl("http://127.0.0.1:7411")).toBe(true);
+    expect(isLoopbackUrl("http://127.1.2.3:7411")).toBe(true);
+    expect(isLoopbackUrl("http://localhost:7411")).toBe(true);
+    expect(isLoopbackUrl("http://[::1]:7411")).toBe(true);
+    expect(isLoopbackUrl("http://127.attacker.example:7411")).toBe(false);
+    expect(isLoopbackUrl("http://192.168.0.5:7411")).toBe(false);
+  });
+});

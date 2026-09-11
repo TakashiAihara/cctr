@@ -1,3 +1,4 @@
+import { isIP } from "node:net";
 import type { Command } from "commander";
 import { isSshTarget } from "@cctr/core";
 import { loadRemotes, saveRemotes, type Remote } from "../config";
@@ -100,7 +101,8 @@ function describe(r: Remote): Record<string, string> {
     : { kind: "ssh", target: r.target, ...(r.command ? { command: r.command } : {}) };
 }
 
-function isLoopbackUrl(u: string): boolean {
+/** Only literal loopback addresses count: `127.attacker.example` is a name, not 127/8. */
+export function isLoopbackUrl(u: string): boolean {
   const h = new URL(u).hostname.replace(/^\[|\]$/g, "");
-  return h === "localhost" || h === "::1" || h.startsWith("127.");
+  return h === "localhost" || h === "::1" || (isIP(h) === 4 && h.startsWith("127."));
 }

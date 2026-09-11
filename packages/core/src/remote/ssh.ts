@@ -55,15 +55,26 @@ export class SshSource implements Source {
   async *readSession(idOrLatest: string): AsyncGenerator<Record> {
     const child = this.spawn(["sessions", "records", idOrLatest]);
     const stderr = collect(child.stderr!).catch(() => "");
+    // listen for exit (and the `error` a missing ssh binary raises) before reading stdout:
+    // an `error` with nobody listening would crash the process instead of rejecting here
+    const exit = exited(child).catch((e: unknown) => e as Error);
     let drained = false;
     try {
-      for await (const line of lines(toWeb(child.stdout!))) {
-        const r = parseLine(line);
-        if (r) yield r;
+      try {
+        for await (const line of lines(toWeb(child.stdout!))) {
+          const r = parseLine(line);
+          if (r) yield r;
+        }
+      } catch (streamErr) {
+        // the stream aborts when the child could not start; the spawn error says why, the abort does not
+        const outcome = await exit;
+        if (outcome instanceof Error) throw new SshError(this.host, -1, outcome.message);
+        throw streamErr;
       }
       drained = true;
-      const code = await exited(child);
-      if (code !== 0 && code !== 3) throw new SshError(this.host, code, await stderr);
+      const outcome = await exit;
+      if (outcome instanceof Error) throw new SshError(this.host, -1, outcome.message);
+      if (outcome !== 0 && outcome !== 3) throw new SshError(this.host, outcome, await stderr);
     } finally {
       // a consumer that stops early (reading the first few records) must not leave an ssh behind
       if (!drained) child.kill("SIGTERM");
@@ -78,7 +89,13 @@ export class SshSource implements Source {
   /** Run one remote command and return its stdout. `allowExit` codes return null instead of throwing. */
   private async runOrNull(args: string[], allowExit: number[]): Promise<string | null> {
     const child = this.spawn(args);
-    const [out, err, code] = await Promise.all([collect(child.stdout!), collect(child.stderr!), exited(child)]);
+    const [out, err, code] = await Promise.all([
+      collect(child.stdout!).catch(() => ""),
+      collect(child.stderr!).catch(() => ""),
+      exited(child).catch((e: unknown) => {
+        throw new SshError(this.host, -1, (e as Error).message);
+      }),
+    ]);
     if (code === 0) return out;
     if (allowExit.includes(code)) return null;
     throw new SshError(this.host, code, err);
@@ -107,10 +124,12 @@ export class SshSource implements Source {
 export class SshError extends Error {
   constructor(
     readonly host: string,
+    /** -1 when ssh could not be started at all (the message then carries the spawn error). */
     readonly exitCode: number,
-    stderr: string,
+    detail: string,
   ) {
-    super(`${host}: ssh exited ${exitCode}${stderr.trim() ? `: ${stderr.trim()}` : ""}`);
+    const d = detail.trim();
+    super(exitCode < 0 ? `${host}: ${d}` : `${host}: ssh exited ${exitCode}${d ? `: ${d}` : ""}`);
   }
 }
 

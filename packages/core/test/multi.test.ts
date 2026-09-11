@@ -238,6 +238,26 @@ describe("wire", () => {
   });
 });
 
+describe("ssh child errors", () => {
+  test("a missing ssh binary rejects the read promptly instead of crashing", async () => {
+    const { SshSource } = await import("../src");
+    const src = new SshSource({ host: "x", target: "nobody@example", sshCommand: "/nonexistent/ssh" });
+    const started = Date.now();
+    let err: unknown = null;
+    try {
+      for await (const _ of src.readSession("abc")) {
+        // nothing arrives
+      }
+    } catch (e) {
+      err = e;
+    }
+    expect(err).toBeInstanceOf(Error);
+    expect(String((err as Error).message)).toMatch(/ENOENT|nonexistent/);
+    expect(Date.now() - started).toBeLessThan(5000);
+    await expect(src.meta()).rejects.toThrow(/ENOENT|nonexistent/);
+  });
+});
+
 describe("lines", () => {
   async function collect(chunks: string[]): Promise<string[]> {
     const enc = new TextEncoder();
