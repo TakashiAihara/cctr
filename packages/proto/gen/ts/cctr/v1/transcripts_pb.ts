@@ -11,21 +11,21 @@ import type { Message } from "@bufbuild/protobuf";
 /**
  * Describes the file cctr/v1/transcripts.proto.
  */
-export const file_cctr_v1_transcripts: GenFile /*@__PURE__*/ = fileDesc(
-  "ChljY3RyL3YxL3RyYW5zY3JpcHRzLnByb3RvEgdjY3RyLnYxIhAKDkdldE1ldGFSZXF1ZXN0InwKD0dldE1ldGFSZXNwb25zZRIMCgRuYW1lGAEgASgJEg8KB3ZlcnNpb24YAiABKAkSFgoOc2NoZW1hX3ZlcnNpb24YAyABKA0SDwoHbWFjaGluZRgEIAEoCRIUCgxwcm9qZWN0c19kaXIYBSABKAkSCwoDcGlkGAYgASgNIlAKBVVzYWdlEg0KBWlucHV0GAEgASgEEg4KBm91dHB1dBgCIAEoBBISCgpjYWNoZV9yZWFkGAMgASgEEhQKDGNhY2hlX2NyZWF0ZRgEIAEoBCKCBAoHU2Vzc2lvbhIKCgJpZBgBIAEoCRIMCgRmaWxlGAIgASgJEgsKA2N3ZBgDIAEoCRISCgpnaXRfYnJhbmNoGAQgASgJEg8KB3ZlcnNpb24YBSABKAkSEgoKZW50cnlwb2ludBgGIAEoCRINCgV0aXRsZRgHIAEoCRITCgtsYXN0X3Byb21wdBgIIAEoCRIsCghmaXJzdF90cxgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASKwoHbGFzdF90cxgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEwoLZHVyYXRpb25fbXMYCyABKAQSDwoHcmVjb3JkcxgMIAEoBBISCgp1c2VyX3R1cm5zGA0gASgEEhYKDmFzc2lzdGFudF9tc2dzGA4gASgEEg4KBm1vZGVscxgPIAMoCRIdCgV1c2FnZRgQIAEoCzIOLmNjdHIudjEuVXNhZ2USKgoFdG9vbHMYESADKAsyGy5jY3RyLnYxLlNlc3Npb24uVG9vbHNFbnRyeRISCgpzaXplX2J5dGVzGBIgASgEEikKBW10aW1lGBMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBosCgpUb29sc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoBDoCOAEiXAoTTGlzdFNlc3Npb25zUmVxdWVzdBILCgNjd2QYASABKAkSKQoFc2luY2UYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg0KBWxpbWl0GAMgASgNIjoKFExpc3RTZXNzaW9uc1Jlc3BvbnNlEiIKCHNlc3Npb25zGAEgAygLMhAuY2N0ci52MS5TZXNzaW9uIh8KEUdldFNlc3Npb25SZXF1ZXN0EgoKAmlkGAEgASgJIjcKEkdldFNlc3Npb25SZXNwb25zZRIhCgdzZXNzaW9uGAEgASgLMhAuY2N0ci52MS5TZXNzaW9uIiAKElJlYWRSZWNvcmRzUmVxdWVzdBIKCgJpZBgBIAEoCSIjChNSZWFkUmVjb3Jkc1Jlc3BvbnNlEgwKBGxpbmUYASABKAkysQIKEVRyYW5zY3JpcHRTZXJ2aWNlEjwKB0dldE1ldGESFy5jY3RyLnYxLkdldE1ldGFSZXF1ZXN0GhguY2N0ci52MS5HZXRNZXRhUmVzcG9uc2USSwoMTGlzdFNlc3Npb25zEhwuY2N0ci52MS5MaXN0U2Vzc2lvbnNSZXF1ZXN0Gh0uY2N0ci52MS5MaXN0U2Vzc2lvbnNSZXNwb25zZRJFCgpHZXRTZXNzaW9uEhouY2N0ci52MS5HZXRTZXNzaW9uUmVxdWVzdBobLmNjdHIudjEuR2V0U2Vzc2lvblJlc3BvbnNlEkoKC1JlYWRSZWNvcmRzEhsuY2N0ci52MS5SZWFkUmVjb3Jkc1JlcXVlc3QaHC5jY3RyLnYxLlJlYWRSZWNvcmRzUmVzcG9uc2UwAWIGcHJvdG8z",
-  [file_google_protobuf_timestamp],
-);
+export const file_cctr_v1_transcripts: GenFile = /*@__PURE__*/
+  fileDesc("ChljY3RyL3YxL3RyYW5zY3JpcHRzLnByb3RvEgdjY3RyLnYxIhAKDkdldE1ldGFSZXF1ZXN0InwKD0dldE1ldGFSZXNwb25zZRIMCgRuYW1lGAEgASgJEg8KB3ZlcnNpb24YAiABKAkSFgoOc2NoZW1hX3ZlcnNpb24YAyABKA0SDwoHbWFjaGluZRgEIAEoCRIUCgxwcm9qZWN0c19kaXIYBSABKAkSCwoDcGlkGAYgASgNIlAKBVVzYWdlEg0KBWlucHV0GAEgASgEEg4KBm91dHB1dBgCIAEoBBISCgpjYWNoZV9yZWFkGAMgASgEEhQKDGNhY2hlX2NyZWF0ZRgEIAEoBCKCBAoHU2Vzc2lvbhIKCgJpZBgBIAEoCRIMCgRmaWxlGAIgASgJEgsKA2N3ZBgDIAEoCRISCgpnaXRfYnJhbmNoGAQgASgJEg8KB3ZlcnNpb24YBSABKAkSEgoKZW50cnlwb2ludBgGIAEoCRINCgV0aXRsZRgHIAEoCRITCgtsYXN0X3Byb21wdBgIIAEoCRIsCghmaXJzdF90cxgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASKwoHbGFzdF90cxgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEwoLZHVyYXRpb25fbXMYCyABKAQSDwoHcmVjb3JkcxgMIAEoBBISCgp1c2VyX3R1cm5zGA0gASgEEhYKDmFzc2lzdGFudF9tc2dzGA4gASgEEg4KBm1vZGVscxgPIAMoCRIdCgV1c2FnZRgQIAEoCzIOLmNjdHIudjEuVXNhZ2USKgoFdG9vbHMYESADKAsyGy5jY3RyLnYxLlNlc3Npb24uVG9vbHNFbnRyeRISCgpzaXplX2J5dGVzGBIgASgEEikKBW10aW1lGBMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBosCgpUb29sc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoBDoCOAEiXAoTTGlzdFNlc3Npb25zUmVxdWVzdBILCgNjd2QYASABKAkSKQoFc2luY2UYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg0KBWxpbWl0GAMgASgNIjoKFExpc3RTZXNzaW9uc1Jlc3BvbnNlEiIKCHNlc3Npb25zGAEgAygLMhAuY2N0ci52MS5TZXNzaW9uIh8KEUdldFNlc3Npb25SZXF1ZXN0EgoKAmlkGAEgASgJIjcKEkdldFNlc3Npb25SZXNwb25zZRIhCgdzZXNzaW9uGAEgASgLMhAuY2N0ci52MS5TZXNzaW9uIiAKElJlYWRSZWNvcmRzUmVxdWVzdBIKCgJpZBgBIAEoCSIjChNSZWFkUmVjb3Jkc1Jlc3BvbnNlEgwKBGxpbmUYASABKAkysQIKEVRyYW5zY3JpcHRTZXJ2aWNlEjwKB0dldE1ldGESFy5jY3RyLnYxLkdldE1ldGFSZXF1ZXN0GhguY2N0ci52MS5HZXRNZXRhUmVzcG9uc2USSwoMTGlzdFNlc3Npb25zEhwuY2N0ci52MS5MaXN0U2Vzc2lvbnNSZXF1ZXN0Gh0uY2N0ci52MS5MaXN0U2Vzc2lvbnNSZXNwb25zZRJFCgpHZXRTZXNzaW9uEhouY2N0ci52MS5HZXRTZXNzaW9uUmVxdWVzdBobLmNjdHIudjEuR2V0U2Vzc2lvblJlc3BvbnNlEkoKC1JlYWRSZWNvcmRzEhsuY2N0ci52MS5SZWFkUmVjb3Jkc1JlcXVlc3QaHC5jY3RyLnYxLlJlYWRSZWNvcmRzUmVzcG9uc2UwAWIGcHJvdG8z", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message cctr.v1.GetMetaRequest
  */
-export type GetMetaRequest = Message<"cctr.v1.GetMetaRequest"> & {};
+export type GetMetaRequest = Message<"cctr.v1.GetMetaRequest"> & {
+};
 
 /**
  * Describes the message cctr.v1.GetMetaRequest.
  * Use `create(GetMetaRequestSchema)` to create a new message.
  */
-export const GetMetaRequestSchema: GenMessage<GetMetaRequest> /*@__PURE__*/ = messageDesc(file_cctr_v1_transcripts, 0);
+export const GetMetaRequestSchema: GenMessage<GetMetaRequest> = /*@__PURE__*/
+  messageDesc(file_cctr_v1_transcripts, 0);
 
 /**
  * @generated from message cctr.v1.GetMetaResponse
@@ -75,10 +75,8 @@ export type GetMetaResponse = Message<"cctr.v1.GetMetaResponse"> & {
  * Describes the message cctr.v1.GetMetaResponse.
  * Use `create(GetMetaResponseSchema)` to create a new message.
  */
-export const GetMetaResponseSchema: GenMessage<GetMetaResponse> /*@__PURE__*/ = messageDesc(
-  file_cctr_v1_transcripts,
-  1,
-);
+export const GetMetaResponseSchema: GenMessage<GetMetaResponse> = /*@__PURE__*/
+  messageDesc(file_cctr_v1_transcripts, 1);
 
 /**
  * @generated from message cctr.v1.Usage
@@ -109,7 +107,8 @@ export type Usage = Message<"cctr.v1.Usage"> & {
  * Describes the message cctr.v1.Usage.
  * Use `create(UsageSchema)` to create a new message.
  */
-export const UsageSchema: GenMessage<Usage> /*@__PURE__*/ = messageDesc(file_cctr_v1_transcripts, 2);
+export const UsageSchema: GenMessage<Usage> = /*@__PURE__*/
+  messageDesc(file_cctr_v1_transcripts, 2);
 
 /**
  * One transcript session: a JSONL file, aggregated in one pass.
@@ -221,7 +220,8 @@ export type Session = Message<"cctr.v1.Session"> & {
  * Describes the message cctr.v1.Session.
  * Use `create(SessionSchema)` to create a new message.
  */
-export const SessionSchema: GenMessage<Session> /*@__PURE__*/ = messageDesc(file_cctr_v1_transcripts, 3);
+export const SessionSchema: GenMessage<Session> = /*@__PURE__*/
+  messageDesc(file_cctr_v1_transcripts, 3);
 
 /**
  * @generated from message cctr.v1.ListSessionsRequest
@@ -253,10 +253,8 @@ export type ListSessionsRequest = Message<"cctr.v1.ListSessionsRequest"> & {
  * Describes the message cctr.v1.ListSessionsRequest.
  * Use `create(ListSessionsRequestSchema)` to create a new message.
  */
-export const ListSessionsRequestSchema: GenMessage<ListSessionsRequest> /*@__PURE__*/ = messageDesc(
-  file_cctr_v1_transcripts,
-  4,
-);
+export const ListSessionsRequestSchema: GenMessage<ListSessionsRequest> = /*@__PURE__*/
+  messageDesc(file_cctr_v1_transcripts, 4);
 
 /**
  * @generated from message cctr.v1.ListSessionsResponse
@@ -274,10 +272,8 @@ export type ListSessionsResponse = Message<"cctr.v1.ListSessionsResponse"> & {
  * Describes the message cctr.v1.ListSessionsResponse.
  * Use `create(ListSessionsResponseSchema)` to create a new message.
  */
-export const ListSessionsResponseSchema: GenMessage<ListSessionsResponse> /*@__PURE__*/ = messageDesc(
-  file_cctr_v1_transcripts,
-  5,
-);
+export const ListSessionsResponseSchema: GenMessage<ListSessionsResponse> = /*@__PURE__*/
+  messageDesc(file_cctr_v1_transcripts, 5);
 
 /**
  * @generated from message cctr.v1.GetSessionRequest
@@ -293,10 +289,8 @@ export type GetSessionRequest = Message<"cctr.v1.GetSessionRequest"> & {
  * Describes the message cctr.v1.GetSessionRequest.
  * Use `create(GetSessionRequestSchema)` to create a new message.
  */
-export const GetSessionRequestSchema: GenMessage<GetSessionRequest> /*@__PURE__*/ = messageDesc(
-  file_cctr_v1_transcripts,
-  6,
-);
+export const GetSessionRequestSchema: GenMessage<GetSessionRequest> = /*@__PURE__*/
+  messageDesc(file_cctr_v1_transcripts, 6);
 
 /**
  * @generated from message cctr.v1.GetSessionResponse
@@ -312,10 +306,8 @@ export type GetSessionResponse = Message<"cctr.v1.GetSessionResponse"> & {
  * Describes the message cctr.v1.GetSessionResponse.
  * Use `create(GetSessionResponseSchema)` to create a new message.
  */
-export const GetSessionResponseSchema: GenMessage<GetSessionResponse> /*@__PURE__*/ = messageDesc(
-  file_cctr_v1_transcripts,
-  7,
-);
+export const GetSessionResponseSchema: GenMessage<GetSessionResponse> = /*@__PURE__*/
+  messageDesc(file_cctr_v1_transcripts, 7);
 
 /**
  * @generated from message cctr.v1.ReadRecordsRequest
@@ -331,10 +323,8 @@ export type ReadRecordsRequest = Message<"cctr.v1.ReadRecordsRequest"> & {
  * Describes the message cctr.v1.ReadRecordsRequest.
  * Use `create(ReadRecordsRequestSchema)` to create a new message.
  */
-export const ReadRecordsRequestSchema: GenMessage<ReadRecordsRequest> /*@__PURE__*/ = messageDesc(
-  file_cctr_v1_transcripts,
-  8,
-);
+export const ReadRecordsRequestSchema: GenMessage<ReadRecordsRequest> = /*@__PURE__*/
+  messageDesc(file_cctr_v1_transcripts, 8);
 
 /**
  * One JSONL line, verbatim. Kept opaque so the wire format never has to know
@@ -354,10 +344,8 @@ export type ReadRecordsResponse = Message<"cctr.v1.ReadRecordsResponse"> & {
  * Describes the message cctr.v1.ReadRecordsResponse.
  * Use `create(ReadRecordsResponseSchema)` to create a new message.
  */
-export const ReadRecordsResponseSchema: GenMessage<ReadRecordsResponse> /*@__PURE__*/ = messageDesc(
-  file_cctr_v1_transcripts,
-  9,
-);
+export const ReadRecordsResponseSchema: GenMessage<ReadRecordsResponse> = /*@__PURE__*/
+  messageDesc(file_cctr_v1_transcripts, 9);
 
 /**
  * One machine's transcripts, read-only. The same contract whether the caller
@@ -377,7 +365,7 @@ export const TranscriptService: GenService<{
     methodKind: "unary";
     input: typeof GetMetaRequestSchema;
     output: typeof GetMetaResponseSchema;
-  };
+  },
   /**
    * Sessions on this machine, newest first.
    *
@@ -387,7 +375,7 @@ export const TranscriptService: GenService<{
     methodKind: "unary";
     input: typeof ListSessionsRequestSchema;
     output: typeof ListSessionsResponseSchema;
-  };
+  },
   /**
    * One session by id, a unique prefix of one, or `latest`.
    *
@@ -397,7 +385,7 @@ export const TranscriptService: GenService<{
     methodKind: "unary";
     input: typeof GetSessionRequestSchema;
     output: typeof GetSessionResponseSchema;
-  };
+  },
   /**
    * The records of one session as they are on disk, one JSONL line each.
    * Streamed: sessions of tens of megabytes exist.
@@ -408,5 +396,7 @@ export const TranscriptService: GenService<{
     methodKind: "server_streaming";
     input: typeof ReadRecordsRequestSchema;
     output: typeof ReadRecordsResponseSchema;
-  };
-}> /*@__PURE__*/ = serviceDesc(file_cctr_v1_transcripts, 0);
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_cctr_v1_transcripts, 0);
+
