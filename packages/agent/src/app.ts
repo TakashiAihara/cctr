@@ -13,15 +13,18 @@ export type AppOptions = {
  * Web UI, and (later) ccx pulling several machines together.
  */
 export function createApp({ source, token }: AppOptions): Hono {
+  if (token.length < 16) throw new Error("agent token must be at least 16 characters");
+  const expected = digest("Bearer " + token);
   const app = new Hono();
 
   app.use("*", async (c, next) => {
     const auth = c.req.header("authorization") ?? "";
-    if (!timingSafeEqual(auth, `Bearer ${token}`)) return c.json({ error: "unauthorized" }, 401);
+    if (!timingSafeEqual(digest(auth), expected)) return c.json({ error: "unauthorized" }, 401);
     await next();
   });
 
-  app.get("/meta", async (c) => c.json(await source.meta()));
+  // pid lets the CLI on this machine check it is talking to the process it started
+  app.get("/meta", async (c) => c.json({ ...(await source.meta()), pid: process.pid }));
 
   app.get("/sessions", async (c) => {
     const q = c.req.query();
@@ -52,11 +55,13 @@ export function createApp({ source, token }: AppOptions): Hono {
   return app;
 }
 
-function timingSafeEqual(a: string, b: string): boolean {
-  const ea = new TextEncoder().encode(a);
-  const eb = new TextEncoder().encode(b);
-  if (ea.length !== eb.length) return false;
-  let diff = 0;
-  for (let i = 0; i < ea.length; i++) diff |= ea[i]! ^ eb[i]!;
+/** Both sides are hashed first, so the comparison is fixed-length and leaks neither length nor prefix. */
+function digest(s: string): Uint8Array {
+  return new Uint8Array(new Bun.CryptoHasher("sha256").update(s).digest());
+}
+
+function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
+  let diff = a.length ^ b.length;
+  for (let i = 0; i < a.length; i++) diff |= a[i]! ^ (b[i] ?? 0);
   return diff === 0;
 }

@@ -1,4 +1,4 @@
-import { HttpSource, LocalSource, MultiSource, SshSource, type Source } from "@cctr/core";
+import { HttpSource, LocalSource, MultiSource, SshSource, splitHost, type Source } from "@cctr/core";
 import { loadRemotes, type Remote } from "./config";
 import { CliError } from "./output";
 import { VERSION } from "./version";
@@ -47,7 +47,5 @@ export function resolveHosts(spec: string | undefined): MultiSource {
 
 /** `host:id` addresses one host without `--host`; an explicit `--host` still wins. */
 export function hostOf(hostOpt: string | undefined, id: string): string | undefined {
-  if (hostOpt) return hostOpt;
-  const i = id.indexOf(":");
-  return i > 0 ? id.slice(0, i) : undefined;
+  return hostOpt ?? splitHost(id).host ?? undefined;
 }

@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -46,12 +46,27 @@ export function saveAgentState(st: AgentState, path = agentStatePath()): void {
   writePrivate(path, JSON.stringify(st, null, 2) + "\n");
 }
 
-/** One token per host, made on first use; the agent presents it, remotes are handed it. */
+const TOKEN_MIN_LENGTH = 16;
+
+/**
+ * One token per host, made on first use; the agent presents it, remotes are handed it.
+ * A token file that is empty or truncated (a crash mid-write) must not become a
+ * token, because an empty token would make `Bearer ` match every request.
+ */
 export function hostToken(): string {
   const p = join(stateDir(), "token");
-  if (existsSync(p)) return readFileSync(p, "utf8").trim();
+  const existing = existsSync(p) ? readFileSync(p, "utf8").trim() : "";
+  if (existing.length >= TOKEN_MIN_LENGTH) return existing;
+  if (existing) throw new Error(`${p} holds something too short to be a token; delete it to get a new one`);
   const t = randomToken();
-  writePrivate(p, t + "\n");
+  try {
+    // exclusive create: two first-time callers cannot end up holding different tokens
+    mkdirSync(dirname(p), { recursive: true, mode: 0o700 });
+    writeFileSync(p, t + "\n", { mode: 0o600, flag: "wx" });
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e;
+    return hostToken();
+  }
   return t;
 }
 
@@ -61,8 +76,11 @@ export function randomToken(): string {
   return Buffer.from(b).toString("base64url");
 }
 
+/** Write via a sibling temp file and rename, so a crash leaves the old file or none, never a torn one. */
 function writePrivate(path: string, content: string): void {
   mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
-  writeFileSync(path, content, { mode: 0o600 });
-  chmodSync(path, 0o600);
+  const tmp = `${path}.${process.pid}.tmp`;
+  writeFileSync(tmp, content, { mode: 0o600 });
+  chmodSync(tmp, 0o600);
+  renameSync(tmp, path);
 }

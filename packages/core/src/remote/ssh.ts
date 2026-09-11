@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { Readable } from "node:stream";
 import { parseLine } from "../records";
 import type { Source, SourceMeta } from "../source";
 import type { Record, SessionFilter, SessionMeta } from "../types";
@@ -78,10 +79,19 @@ export class SshSource implements Source {
   private spawn(args: string[]) {
     // BatchMode: a missing key fails at once instead of hanging on a password prompt.
     // ConnectTimeout: an unreachable host answers in seconds, not the kernel's minutes.
+    // ServerAlive: a connection that dies after it was established is noticed in ~15s.
     const remote = [this.command, ...args].map(shellQuote).join(" ");
-    return spawn(this.ssh, ["-o", "BatchMode=yes", "-o", "ConnectTimeout=10", this.target, remote], {
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    const opts = [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ConnectTimeout=10",
+      "-o",
+      "ServerAliveInterval=5",
+      "-o",
+      "ServerAliveCountMax=3",
+    ];
+    return spawn(this.ssh, [...opts, this.target, remote], { stdio: ["ignore", "pipe", "pipe"] });
   }
 }
 
@@ -109,18 +119,20 @@ async function collect(stream: NodeJS.ReadableStream): Promise<string> {
 function exited(child: ReturnType<typeof spawn>): Promise<number> {
   return new Promise((resolve, reject) => {
     child.on("error", reject);
-    child.on("close", (code) => resolve(code ?? 1));
+    // a signal has no code; 128+n is the shell's own convention for it, so it reads the same way
+    child.on("close", (code, signal) => resolve(code ?? (signal ? 128 + (signalNumber[signal] ?? 0) : 1)));
   });
 }
 
+const signalNumber: Partial<globalThis.Record<NodeJS.Signals, number>> = {
+  SIGHUP: 1,
+  SIGINT: 2,
+  SIGKILL: 9,
+  SIGPIPE: 13,
+  SIGTERM: 15,
+};
+
+/** Node's own conversion keeps backpressure; a hand-rolled one would buffer a whole session. */
 function toWeb(stream: NodeJS.ReadableStream): ReadableStream<Uint8Array> {
-  return new ReadableStream<Uint8Array>({
-    start(ctrl) {
-      stream.on("data", (chunk: Buffer | string) =>
-        ctrl.enqueue(typeof chunk === "string" ? new TextEncoder().encode(chunk) : new Uint8Array(chunk)),
-      );
-      stream.on("end", () => ctrl.close());
-      stream.on("error", (e) => ctrl.error(e));
-    },
-  });
+  return Readable.toWeb(stream as Readable) as unknown as ReadableStream<Uint8Array>;
 }

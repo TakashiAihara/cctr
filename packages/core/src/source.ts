@@ -56,7 +56,9 @@ export class LocalSource implements Source {
     const sinceT = filter.since ? Date.parse(filter.since) : NaN;
     const out: SessionMeta[] = [];
     for (const f of listSessionFiles(this.dir)) {
-      // mtime is newest-first, so once a file is older than `since` the rest are too
+      // Files are newest-first by mtime, and a file whose mtime is before `since` was last
+      // written before `since`, so it holds no record stamped after it (unless the machine's
+      // clock ran ahead of its filesystem). Stopping here spares parsing the older files.
       if (!Number.isNaN(sinceT) && f.mtimeMs < sinceT) break;
       const m = await parseSession(f, this.host);
       if (filter.cwd && m.cwd !== filter.cwd) continue;

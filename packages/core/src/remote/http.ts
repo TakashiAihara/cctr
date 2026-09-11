@@ -85,7 +85,11 @@ async function assertOk(res: Response, host: string): Promise<void> {
   throw new RemoteError(host, res.status, `HTTP ${res.status} ${detail}`);
 }
 
-/** Split a byte stream on newlines; the last unterminated piece is dropped like a half-written JSONL line. */
+/**
+ * Split a byte stream on newlines. Every record the agent sends ends in a newline,
+ * so an unterminated tail means the transfer was cut; it is dropped, like the
+ * half-written last line of a session file, rather than passed off as a record.
+ */
 export async function* lines(body: ReadableStream<Uint8Array>): AsyncGenerator<string> {
   const dec = new TextDecoder();
   let buf = "";
@@ -97,6 +101,5 @@ export async function* lines(body: ReadableStream<Uint8Array>): AsyncGenerator<s
       buf = buf.slice(i + 1);
     }
   }
-  buf += dec.decode();
-  if (buf) yield buf;
+  dec.decode();
 }

@@ -73,7 +73,9 @@ export function registerAgent(program: Command): void {
     .command("stop")
     .description("stop the background agent")
     .action(async () => {
-      const st = await liveState();
+      // looser than liveState on purpose: an agent from an older build answers without a pid,
+      // and it still has to be stoppable. The process in the state file must be alive, though.
+      const st = (await liveState()) ?? (await stoppableState());
       if (!st) {
         clearState();
         throw new CliError("agent is not running", 1);
@@ -114,27 +116,51 @@ export function registerAgent(program: Command): void {
     });
 }
 
-/** State file + the process answering /meta with the token. A stale file (crash, reboot) reads as not running. */
-async function liveState(): Promise<AgentState | null> {
+/** The state file's process is alive and something on its port answers /meta as cctr. */
+async function stoppableState(): Promise<AgentState | null> {
   const st = loadAgentState();
   if (!st) return null;
+  try {
+    process.kill(st.pid, 0);
+  } catch {
+    return null;
+  }
+  const body = await metaOf(st);
+  return body?.name === "cctr" ? st : null;
+}
+
+async function metaOf(st: AgentState): Promise<{ name?: string; pid?: number } | null> {
   const host = st.bind === "0.0.0.0" ? "127.0.0.1" : st.bind;
   try {
     const res = await fetch(`http://${host}:${st.port}/meta`, {
       headers: { authorization: "Bearer " + st.token },
       signal: AbortSignal.timeout(1500),
     });
-    return res.ok ? st : null;
+    return res.ok ? ((await res.json()) as { name?: string; pid?: number }) : null;
   } catch {
     return null;
   }
 }
 
+/** State file + the process answering /meta with the token and our pid. A stale file (crash, reboot) reads as not running. */
+async function liveState(): Promise<AgentState | null> {
+  const st = loadAgentState();
+  if (!st) return null;
+  // a different process that happens to own the port must not be taken for our agent
+  const body = await metaOf(st);
+  return body?.name === "cctr" && body.pid === st.pid ? st : null;
+}
+
+/** The agent removes its own state on SIGTERM and `stop` removes it too; whoever is second finds it gone. */
 function clearState(onlyPid?: number): void {
   const p = agentStatePath();
   if (!existsSync(p)) return;
   if (onlyPid !== undefined && loadAgentState()?.pid !== onlyPid) return;
-  unlinkSync(p);
+  try {
+    unlinkSync(p);
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
+  }
 }
 
 function parsePort(v: string): number {

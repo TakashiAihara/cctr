@@ -40,6 +40,21 @@ describe("agent app", () => {
     expect(n).toBe(0);
   });
 
+  test("since and cwd reach the source through the query string", async () => {
+    const src = new HttpSource({ host: "remote-a", url: "http://x", token: GOOD, fetch: fetchApp });
+    expect((await src.listSessions({ cwd: "/home/u/proj-b" })).map((m) => m.id)).toEqual([
+      "bbbbbbbb-0000-4000-8000-000000000002",
+    ]);
+    expect((await src.listSessions({ since: "2026-08-25T00:00:00Z" })).map((m) => m.id)).toEqual([A]);
+  });
+
+  test("/meta carries the serving pid and a short token is refused at construction", async () => {
+    const res = await app.fetch(new Request("http://x/meta", bearer(GOOD)));
+    expect(((await res.json()) as { pid: number }).pid).toBe(process.pid);
+    expect(() => createApp({ source: new LocalSource({ projectsDir: FIX }), token: "" })).toThrow(/16/);
+    expect(() => createApp({ source: new LocalSource({ projectsDir: FIX }), token: "short" })).toThrow(/16/);
+  });
+
   test("bad limit is a 400; auth failure surfaces as RemoteError naming the host", async () => {
     const res = await app.fetch(new Request("http://x/sessions?limit=-1", bearer(GOOD)));
     expect(res.status).toBe(400);
