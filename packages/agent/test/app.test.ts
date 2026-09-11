@@ -63,6 +63,13 @@ describe("agent app", () => {
     expect((await src.listSessions({ since: "2026-08-25T00:00:00Z" })).map((m) => m.id)).toEqual([A]);
   });
 
+  test("/healthz answers without a token and says only name, pid and version", async () => {
+    const res = await app.fetch(new Request("http://x/healthz"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body).toEqual({ name: "cctr", pid: process.pid, version: "0.0.0" });
+  });
+
   test("GetMeta carries the serving pid and a short token is refused at construction", async () => {
     const res = await post("GetMeta", bearer(GOOD));
     expect(res.status).toBe(200);

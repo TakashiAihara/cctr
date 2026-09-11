@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { probeHost } from "../src/commands/agent";
+import { isAgentProcess, isLocalBind, probeHost } from "../src/commands/agent";
 
 describe("probeHost", () => {
   test("wildcards become loopback, IPv6 literals get brackets, IPv4 and names pass", () => {
@@ -60,5 +60,61 @@ describe("isLoopbackUrl", () => {
     expect(isLoopbackUrl("http://[::1]:7411")).toBe(true);
     expect(isLoopbackUrl("http://127.attacker.example:7411")).toBe(false);
     expect(isLoopbackUrl("http://192.168.0.5:7411")).toBe(false);
+  });
+});
+
+describe("isLocalBind", () => {
+  const ifaces = {
+    eth0: [
+      { address: "192.168.0.121", family: "IPv4" },
+      { address: "fe80::1%eth0", family: "IPv6" },
+    ],
+  } as never;
+  test("wildcards, loopback and this machine's addresses pass; names and other addresses do not", () => {
+    for (const b of [
+      "0.0.0.0",
+      "::",
+      "localhost",
+      "::1",
+      "0:0:0:0:0:0:0:1",
+      "FE80::1",
+      "127.0.0.1",
+      "127.1.2.3",
+      "192.168.0.121",
+      "fe80::1",
+    ]) {
+      expect(isLocalBind(b, ifaces)).toBe(true);
+    }
+    for (const b of ["example.com", "127.attacker.example", "10.0.0.9", "203.0.113.1", ""]) {
+      expect(isLocalBind(b, ifaces)).toBe(false);
+    }
+  });
+});
+
+describe("isAgentProcess", () => {
+  test("only a process whose command line is a cctr agent run counts", () => {
+    const ps = (table: Record<number, string | null>) => (pid: number) => table[pid] ?? null;
+    const t = ps({
+      1: "/root/.local/bin/cctr agent run --port 7411 --bind 127.0.0.1",
+      2: "cctr agent run",
+      3: "python3 -m http.server 7411",
+      4: "/usr/bin/cctr sessions list",
+      5: "/opt/notcctr agent run",
+      6: null,
+      7: 'cctr search "agent run"',
+      8: "/usr/bin/cctr sessions get agent run",
+      9: "sh -c /usr/bin/cctr agent run",
+      10: "  /usr/local/bin/cctr agent run --bind 0.0.0.0 --port 7411",
+    });
+    expect(isAgentProcess(1, t)).toBe(true);
+    expect(isAgentProcess(2, t)).toBe(true);
+    expect(isAgentProcess(3, t)).toBe(false);
+    expect(isAgentProcess(4, t)).toBe(false);
+    expect(isAgentProcess(5, t)).toBe(false);
+    expect(isAgentProcess(6, t)).toBe(false);
+    expect(isAgentProcess(7, t)).toBe(false);
+    expect(isAgentProcess(8, t)).toBe(false);
+    expect(isAgentProcess(9, t)).toBe(false);
+    expect(isAgentProcess(10, t)).toBe(true);
   });
 });
