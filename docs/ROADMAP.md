@@ -310,6 +310,7 @@ Purpose: several agents, pulled together. ccx does the pulling; cctr finishes wh
 - `GetMeta` carries machine id, hostname and schema version (in place since Phase 0)
 - `cctr remote add <name> --url|--ssh` and `--host` across sessions, search and stats (in place since Phase 0; search and stats join as they land)
 - Authentication: bearer token; nothing is served unauthenticated even on a LAN
+- Transport security: TLS for the agent (or a documented tunnel-only mode), so a bearer token never crosses a network in the clear. Until then, HTTP beyond loopback is for trusted networks and SSH tunnels; the README says so
 - `packages/core` published as an npm package the ccx hub (`ccx-center`, TypeScript) can depend on
 - Absorption notes: which subcommand lands where in ccx; the agent gives way to `ccxd`, and `TranscriptService` becomes one of `ccxd`'s services
 - ccx's action provider: start a session on a remote machine from the viewer and send it instructions, with the agent process managing it (the shape herdr uses for panes). The provider interface was fixed in Phase 9

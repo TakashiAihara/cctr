@@ -36,6 +36,8 @@ export function registerSessions(program: Command): void {
       const { sessions: metas, errors } = await resolveHosts(g.host).listSessions({ limit: 1 });
       for (const e of errors) log(`cctr: ${e.host}: ${e.error}`);
       const m = metas[0];
+      // every host failing is a transport error (exit 1), not "no sessions" (exit 3)
+      if (!m && errors.length) throw new CliError("no host answered", 1);
       if (!m) throw new CliError("no sessions found", EXIT_NOT_FOUND);
       if (g.format === "table" || g.format === "id")
         return console.log(m.host === "local" ? m.id : `${m.host}:${m.id}`);

@@ -12,7 +12,7 @@ One word, one meaning. Each entry says where the thing exists so the definition 
   - subagent: a Claude Code sidechain (`isSidechain: true`, `agentId`, `<session>/subagents/`). Never called an agent here
 - host: two things. Say which
   - host (alias): the name a remote is registered under (`cctr remote add <name>`), and the `host` field on every `SessionMeta`. `local` is this machine
-  - hostname: what the machine calls itself, reported in `/meta` as `host`
+  - machine: what the machine calls itself across the fleet (hostname unless `CCX_MACHINE` is set), reported by `GetMeta` as `machine`
 
 ## Terms
 
@@ -23,5 +23,5 @@ One word, one meaning. Each entry says where the thing exists so the definition 
 - machine id: what identifies a machine across the fleet. hostname unless `CCX_MACHINE` is set
 - schema version: `SCHEMA_VERSION` in `packages/core/src/source.ts`; bumped when `SessionMeta` or the record shape changes incompatibly
 - contract: `TranscriptService` in `packages/proto/cctr/v1/transcripts.proto`; what the agent serves and `HttpSource` consumes. Generated code under `packages/proto/gen/ts` is committed
-- action provider: the slot for "do something with this session" (resume, send). Phase 7; none ships with cctr
+- action provider: the slot for "do something with this session" (resume, send). Phase 9; none ships with cctr
 - redact: hide secrets and PII before output leaves. Default on for export and MCP, off for the CLI

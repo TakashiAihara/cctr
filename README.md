@@ -61,6 +61,11 @@ cctr sessions records mac:latest
 
 One host being down is reported on stderr; the others still answer.
 
+### Which path
+
+- SSH is the default answer: no port to open, no token to hand around, and the transcripts travel inside the SSH session. Use it whenever you can already `ssh` to the machine
+- HTTP is for the cases SSH does not cover (a machine you cannot ssh into, a viewer that is not a shell, ccx pulling several machines together). It is plain HTTP with a bearer token: on an untrusted network, put it behind an SSH tunnel (`ssh -L 7411:127.0.0.1:7411 host`) or a TLS-terminating proxy. Built-in TLS is on the roadmap (Phase 10)
+
 ### The agent
 
 `cctr agent` is the HTTP process another machine reads this one through. It is only needed for HTTP remotes; SSH remotes and the local CLI read the files directly.
