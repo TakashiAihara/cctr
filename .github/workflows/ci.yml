@@ -19,6 +19,8 @@ jobs:
       - run: bun run build
       - name: Smoke the binary against the fixture
         run: |
+          # `latest` is by file mtime; a fresh checkout gives every fixture the same one
+          touch packages/core/test/fixtures/2.1.267/-home-u-proj-a/aaaaaaaa-0000-4000-8000-000000000001.jsonl
           CCTR_PROJECTS_DIR=packages/core/test/fixtures/2.1.267 ./cctr sessions list --format table
           test "$(CCTR_PROJECTS_DIR=packages/core/test/fixtures/2.1.267 ./cctr sessions latest --format id)" = "aaaaaaaa-0000-4000-8000-000000000001"
       - name: install.sh is valid POSIX sh
