@@ -60,6 +60,27 @@ export function registerAgent(program: Command): void {
       if (running)
         throw new CliError(`agent already running (pid ${running.pid}, http://${running.bind}:${running.port})`, 1);
       const port = parsePort(opts.port);
+      if (port !== 0) {
+        // the state file can be gone while an agent still holds the port (a crash of the CLI
+        // that started it, a second start racing this one); take it back rather than spawn a
+        // child that fails to bind and dies unseen
+        const orphan = await metaOf({ bind: opts.bind, port, token: hostToken() } as AgentState);
+        if (orphan?.name === "cctr" && typeof orphan.pid === "number") {
+          const st: AgentState = {
+            pid: orphan.pid,
+            bind: opts.bind,
+            port,
+            token: hostToken(),
+            startedAt: new Date().toISOString(),
+            version: VERSION,
+          };
+          saveAgentState(st);
+          json({ pid: st.pid, url: `http://${probeHost(st.bind)}:${st.port}`, startedAt: st.startedAt, adopted: true });
+          return;
+        }
+        if (await portInUse(opts.bind, port))
+          throw new CliError(`port ${port} is in use by something that is not this host's cctr agent`, 1);
+      }
       const [cmd, args] = selfCommand(["agent", "run", "--port", String(port), "--bind", opts.bind]);
       const child = spawn(cmd, args, { detached: true, stdio: "ignore" });
       child.unref();
@@ -112,6 +133,17 @@ export function registerAgent(program: Command): void {
     .action(() => {
       process.stdout.write(hostToken() + "\n");
     });
+}
+
+/** Bind and release once; EADDRINUSE means someone else has it. */
+async function portInUse(bind: string, port: number): Promise<boolean> {
+  try {
+    const srv = Bun.serve({ hostname: bind, port, fetch: () => new Response("") });
+    srv.stop(true);
+    return false;
+  } catch {
+    return true;
+  }
 }
 
 function alive(pid: number): boolean {
