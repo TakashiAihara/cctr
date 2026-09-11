@@ -120,13 +120,18 @@ export function registerAgent(program: Command): void {
 async function stoppableState(): Promise<AgentState | null> {
   const st = loadAgentState();
   if (!st) return null;
-  try {
-    process.kill(st.pid, 0);
-  } catch {
-    return null;
-  }
+  if (!alive(st.pid)) return null;
   const body = await metaOf(st);
   return body?.name === "cctr" ? st : null;
+}
+
+function alive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** GetMeta as a plain Connect JSON POST: no client to build for a liveness probe. */
@@ -148,7 +153,10 @@ async function metaOf(st: AgentState): Promise<{ name?: string; pid?: number } |
 async function liveState(): Promise<AgentState | null> {
   const st = loadAgentState();
   if (!st) return null;
-  // a different process that happens to own the port must not be taken for our agent
+  // the recorded process must exist before the token goes anywhere: after a crash, whoever
+  // took the port must not be handed a Bearer header just to be asked who it is
+  if (!alive(st.pid)) return null;
+  // and a different process that happens to own the port must not be taken for our agent
   const body = await metaOf(st);
   return body?.name === "cctr" && body.pid === st.pid ? st : null;
 }

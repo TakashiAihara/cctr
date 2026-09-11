@@ -26,6 +26,7 @@ export class SshSource implements Source {
   private readonly ssh: string;
 
   constructor(opts: SshSourceOptions) {
+    if (!isSshTarget(opts.target)) throw new Error(`not an ssh target: ${JSON.stringify(opts.target)}`);
     this.host = opts.host;
     this.target = opts.target;
     this.command = opts.command ?? "cctr";
@@ -53,13 +54,20 @@ export class SshSource implements Source {
 
   async *readSession(idOrLatest: string): AsyncGenerator<Record> {
     const child = this.spawn(["sessions", "records", idOrLatest]);
-    const stderr = collect(child.stderr!);
-    for await (const line of lines(toWeb(child.stdout!))) {
-      const r = parseLine(line);
-      if (r) yield r;
+    const stderr = collect(child.stderr!).catch(() => "");
+    let drained = false;
+    try {
+      for await (const line of lines(toWeb(child.stdout!))) {
+        const r = parseLine(line);
+        if (r) yield r;
+      }
+      drained = true;
+      const code = await exited(child);
+      if (code !== 0 && code !== 3) throw new SshError(this.host, code, await stderr);
+    } finally {
+      // a consumer that stops early (reading the first few records) must not leave an ssh behind
+      if (!drained) child.kill("SIGTERM");
     }
-    const code = await exited(child);
-    if (code !== 0 && code !== 3) throw new SshError(this.host, code, await stderr);
   }
 
   private async run(args: string[]): Promise<string> {
@@ -91,7 +99,8 @@ export class SshSource implements Source {
       "-o",
       "ServerAliveCountMax=3",
     ];
-    return spawn(this.ssh, [...opts, this.target, remote], { stdio: ["ignore", "pipe", "pipe"] });
+    // `--` keeps a target that starts with `-` from being read as an ssh option (ProxyCommand and friends)
+    return spawn(this.ssh, [...opts, "--", this.target, remote], { stdio: ["ignore", "pipe", "pipe"] });
   }
 }
 
@@ -105,8 +114,9 @@ export class SshError extends Error {
   }
 }
 
-function shellQuote(s: string): string {
-  return /^[A-Za-z0-9_@%+=:,./-]+$/.test(s) ? s : `'${s.replace(/'/g, `'\\''`)}'`;
+/** Quote for the remote shell. `~` stays bare so `--command ~/.local/bin/cctr` still expands there. */
+export function shellQuote(s: string): string {
+  return /^[A-Za-z0-9_@%+=:,./~-]+$/.test(s) ? s : `'${s.replace(/'/g, `'\\''`)}'`;
 }
 
 async function collect(stream: NodeJS.ReadableStream): Promise<string> {
@@ -135,4 +145,9 @@ const signalNumber: Partial<globalThis.Record<NodeJS.Signals, number>> = {
 /** Node's own conversion keeps backpressure; a hand-rolled one would buffer a whole session. */
 function toWeb(stream: NodeJS.ReadableStream): ReadableStream<Uint8Array> {
   return Readable.toWeb(stream as Readable) as unknown as ReadableStream<Uint8Array>;
+}
+
+/** `user@host`, `host`, or an ssh_config alias: never empty, never starting with `-`, no whitespace. */
+export function isSshTarget(t: string): boolean {
+  return /^[A-Za-z0-9][A-Za-z0-9_.@:%[\]-]*$/.test(t);
 }

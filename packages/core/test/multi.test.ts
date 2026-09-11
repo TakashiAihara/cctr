@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   HostsUnreachableError,
+  UnknownHostError,
   LocalSource,
   MultiSource,
   type Record,
@@ -103,6 +104,9 @@ describe("discover order and latest", () => {
     utimesSync(join(dir, FILE_B), new Date("2026-09-10"), new Date("2026-09-10"));
     const src = new LocalSource({ projectsDir: dir });
     expect((await src.listSessions({ since: "2026-08-25T00:00:00Z" })).map((m) => m.id)).toEqual([]);
+    // within a day of `since` the file is still parsed, and its records decide
+    utimesSync(join(dir, FILE_A), new Date("2026-08-24T12:00:00Z"), new Date("2026-08-24T12:00:00Z"));
+    expect((await src.listSessions({ since: "2026-08-25T00:00:00Z" })).map((m) => m.id)).toEqual([A]);
     // and with the file freshly written, A comes back
     utimesSync(join(dir, FILE_A), new Date("2026-09-11"), new Date("2026-09-11"));
     expect((await src.listSessions({ since: "2026-08-25T00:00:00Z" })).map((m) => m.id)).toEqual([A]);
@@ -150,7 +154,53 @@ describe("MultiSource", () => {
     const m = new MultiSource([one, dup]);
     expect((await m.getSession("two:s1"))?.host).toBe("two");
     expect((await m.getSession("one:s1"))?.host).toBe("one");
-    expect(await m.getSession("three:s1")).toBeNull();
+    await expect(m.getSession("three:s1")).rejects.toBeInstanceOf(UnknownHostError);
+  });
+});
+
+describe("MultiSource latest", () => {
+  test("`latest` is the newest across hosts, not the first host that answered", async () => {
+    const old = fake("one", [meta("s-old", "one", "2026-01-01T00:00:00Z")]);
+    const recent = fake("two", [meta("s-new", "two", "2026-09-01T00:00:00Z")]);
+    // fakes answer "latest" with their single session
+    for (const f of [old, recent]) {
+      const orig = f.getSession.bind(f);
+      f.getSession = async (id) => (id === "latest" ? ((await f.listSessions())[0] ?? null) : orig(id));
+    }
+    expect((await new MultiSource([old, recent]).getSession("latest"))?.id).toBe("s-new");
+    expect((await new MultiSource([recent, old]).getSession("latest"))?.id).toBe("s-new");
+  });
+});
+
+describe("usage per message id", () => {
+  test("a later line without usage keeps what the earlier line reported", async () => {
+    const { parseSession } = await import("../src");
+    const { writeFileSync, mkdtempSync, mkdirSync } = await import("node:fs");
+    const dir = mkdtempSync(join(tmpdir(), "cctr-usage-"));
+    mkdirSync(join(dir, "p"));
+    const f = join(dir, "p", "dddddddd-0000-4000-8000-000000000004.jsonl");
+    writeFileSync(
+      f,
+      '{"type":"assistant","timestamp":"2026-09-01T00:00:00.000Z","message":{"id":"m","role":"assistant","content":[{"type":"text","text":"a"}],"usage":{"input_tokens":7,"output_tokens":3}},"uuid":"a1"}\n' +
+        '{"type":"assistant","timestamp":"2026-09-01T00:00:01.000Z","message":{"id":"m","role":"assistant","content":[{"type":"text","text":"b"}]},"uuid":"a2"}\n',
+    );
+    const m = await parseSession({ file: f, mtimeMs: 0, sizeBytes: 0 });
+    expect(m.usage).toEqual({ input: 7, output: 3, cacheRead: 0, cacheCreate: 0 });
+    expect(m.assistantMsgs).toBe(1);
+  });
+});
+
+describe("ssh target and quoting", () => {
+  test("targets starting with - or containing spaces are refused; ~ stays bare in quoting", async () => {
+    const { isSshTarget, shellQuote, SshSource } = await import("../src");
+    expect(isSshTarget("user@host")).toBe(true);
+    expect(isSshTarget("pi")).toBe(true);
+    expect(isSshTarget("-oProxyCommand=calc")).toBe(false);
+    expect(isSshTarget("user@host extra")).toBe(false);
+    expect(isSshTarget("")).toBe(false);
+    expect(() => new SshSource({ host: "x", target: "-oProxyCommand=calc" })).toThrow(/not an ssh target/);
+    expect(shellQuote("~/.local/bin/cctr")).toBe("~/.local/bin/cctr");
+    expect(shellQuote("a b")).toBe("'a b'");
   });
 });
 

@@ -10,7 +10,11 @@ export async function parseSession(entry: FileEntry, host = "local"): Promise<Se
   for await (const rec of readRecords(entry.file)) {
     fold(meta, rec, st);
   }
-  if (meta.firstTs && meta.lastTs) meta.durationMs = Date.parse(meta.lastTs) - Date.parse(meta.firstTs);
+  if (meta.firstTs && meta.lastTs) {
+    // a timestamp that does not parse must not become NaN: BigInt(NaN) throws on the wire
+    const d = Date.parse(meta.lastTs) - Date.parse(meta.firstTs);
+    meta.durationMs = Number.isFinite(d) && d >= 0 ? d : 0;
+  }
   meta.models = [...st.models];
   meta.assistantMsgs = st.usageById.size + st.untitledUsage.length;
   for (const u of [...st.usageById.values(), ...st.untitledUsage]) {
@@ -79,10 +83,12 @@ function fold(meta: SessionMeta, rec: Record, st: FoldState): void {
   if (rec.type === "assistant" && rec.message) {
     // <synthetic> is the pseudo-model on injected turns, not a model that ran
     if (rec.message.model && rec.message.model !== "<synthetic>") st.models.add(rec.message.model);
-    const u = rec.message.usage ?? {};
     const id = (rec.raw as { message?: { id?: unknown } }).message?.id;
-    if (typeof id === "string") st.usageById.set(id, u);
-    else st.untitledUsage.push(u);
+    const u = rec.message.usage;
+    // a line without usage must not erase what an earlier line of the same message reported
+    if (typeof id === "string") {
+      if (u || !st.usageById.has(id)) st.usageById.set(id, u ?? {});
+    } else st.untitledUsage.push(u ?? {});
     for (const b of blocks(rec.message.content)) {
       if (b.type === "tool_use") {
         const n = typeof b.name === "string" ? b.name : "?";

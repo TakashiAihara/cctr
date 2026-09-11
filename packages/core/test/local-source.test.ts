@@ -65,10 +65,29 @@ describe("LocalSource", () => {
     expect(m!.records).toBe(11);
   });
 
+  test("an unparseable timestamp gives duration 0, not NaN", async () => {
+    const { parseSession } = await import("../src");
+    const { writeFileSync, mkdtempSync, mkdirSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const dir = mkdtempSync(join(tmpdir(), "cctr-ts-"));
+    mkdirSync(join(dir, "p"));
+    const f = join(dir, "p", "cccccccc-0000-4000-8000-000000000003.jsonl");
+    writeFileSync(
+      f,
+      '{"type":"user","timestamp":"not a date","message":{"role":"user","content":"x"},"uuid":"u1"}\n' +
+        '{"type":"assistant","timestamp":"2026-09-01T00:00:01.000Z","message":{"id":"m","role":"assistant","content":[]},"uuid":"a1"}\n',
+    );
+    const m = await parseSession({ file: f, mtimeMs: 0, sizeBytes: 0 });
+    expect(m.durationMs).toBe(0);
+    expect(Number.isFinite(m.durationMs)).toBe(true);
+  });
+
   test("prefix and latest resolve", async () => {
     expect((await src.getSession("bbbb"))?.id).toBe(B);
     expect(await src.getSession("zzzz")).toBeNull();
-    expect((await src.getSession("latest"))?.id).toBeString();
+    // `latest` is the newest file; the ordering test in multi.test.ts pins which one that is
+    const files = listSessionFiles(FIX);
+    expect((await src.getSession("latest"))?.file).toBe(files[0]!.file);
   });
 
   test("listSessions filters by cwd, since, limit", async () => {

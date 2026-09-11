@@ -44,18 +44,43 @@ export class MultiSource {
     const sources = this.pick(id);
     const results = await Promise.allSettled(sources.map((s) => s.getSession(bare)));
     const errors: HostError[] = [];
+    let best: { source: Source; meta: SessionMeta } | null = null;
     for (let i = 0; i < results.length; i++) {
       const r = results[i]!;
-      if (r.status === "fulfilled" && r.value) return { source: sources[i]!, meta: r.value };
-      if (r.status === "rejected") errors.push({ host: sources[i]!.host, error: errMsg(r.reason, sources[i]!.host) });
+      if (r.status === "rejected") {
+        errors.push({ host: sources[i]!.host, error: errMsg(r.reason, sources[i]!.host) });
+        continue;
+      }
+      if (!r.value) continue;
+      // `latest` means the newest across every host asked, not the first host that answered
+      if (bare !== "latest") return { source: sources[i]!, meta: r.value };
+      if (!best || (r.value.lastTs ?? "") > (best.meta.lastTs ?? "")) best = { source: sources[i]!, meta: r.value };
     }
+    if (best) return best;
     if (errors.length) throw new HostsUnreachableError(errors);
     return { source: null, meta: null };
   }
 
   private pick(id: string): Source[] {
     const { host } = splitHost(id);
-    return host === null ? this.sources : this.sources.filter((s) => s.host === host);
+    if (host === null) return this.sources;
+    const picked = this.sources.filter((s) => s.host === host);
+    // a misspelt host must not read as "no such session"
+    if (picked.length === 0)
+      throw new UnknownHostError(
+        host,
+        this.sources.map((s) => s.host),
+      );
+    return picked;
+  }
+}
+
+export class UnknownHostError extends Error {
+  constructor(
+    readonly host: string,
+    known: string[],
+  ) {
+    super(`unknown host: ${host} (known: ${known.join(", ")})`);
   }
 }
 

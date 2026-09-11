@@ -1,4 +1,5 @@
 import type { Command } from "commander";
+import { isSshTarget } from "@cctr/core";
 import { loadRemotes, saveRemotes, type Remote } from "../config";
 import { remoteSource } from "../hosts";
 import { CliError, json, log } from "../output";
@@ -26,6 +27,12 @@ export function registerRemote(program: Command): void {
           if (!opts.token) throw new CliError("--url needs --token (run `cctr agent token` on that host)", 2);
           r = { kind: "http", url: opts.url, token: opts.token };
         } else if (opts.ssh && !opts.url) {
+          if (!isSshTarget(opts.ssh)) {
+            throw new CliError(
+              `--ssh must be user@host, host, or an ssh_config alias; got ${JSON.stringify(opts.ssh)}`,
+              2,
+            );
+          }
           r = { kind: "ssh", target: opts.ssh, ...(opts.command ? { command: opts.command } : {}) };
         } else {
           throw new CliError("give exactly one of --url or --ssh", 2);

@@ -16,6 +16,8 @@ export type SourceMeta = {
 
 export const SCHEMA_VERSION = 1;
 
+const MTIME_SLACK_MS = 24 * 60 * 60 * 1000;
+
 /**
  * One place transcripts come from: this machine, or a cctr reached over HTTP
  * or SSH. Every surface (CLI, MCP, Web, TUI) talks to a Source, so a remote
@@ -57,9 +59,10 @@ export class LocalSource implements Source {
     const out: SessionMeta[] = [];
     for (const f of listSessionFiles(this.dir)) {
       // Files are newest-first by mtime, and a file whose mtime is before `since` was last
-      // written before `since`, so it holds no record stamped after it (unless the machine's
-      // clock ran ahead of its filesystem). Stopping here spares parsing the older files.
-      if (!Number.isNaN(sinceT) && f.mtimeMs < sinceT) break;
+      // written before `since`, so it holds no record stamped after it. Stopping here spares
+      // parsing the older files. A day of slack covers a clock that ran ahead of the filesystem;
+      // beyond that the records themselves decide (the lastTs check below).
+      if (!Number.isNaN(sinceT) && f.mtimeMs < sinceT - MTIME_SLACK_MS) break;
       const m = await parseSession(f, this.host);
       if (filter.cwd && m.cwd !== filter.cwd) continue;
       if (!Number.isNaN(sinceT) && !(m.lastTs && Date.parse(m.lastTs) >= sinceT)) continue;
