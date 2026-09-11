@@ -192,7 +192,8 @@ function alive(pid: number): boolean {
  */
 export function isAgentProcess(pid: number, ps = readPsArgs): boolean {
   const args = ps(pid);
-  return args !== null && /(^|\/)cctr(\s|$)/.test(args.split(" ")[0] ?? "") && /\bagent\s+run\b/.test(args);
+  // `agent run` must follow the executable: `cctr search "agent run"` is not an agent
+  return args !== null && /(^|\/)cctr\s+agent\s+run(\s|$)/.test(args);
 }
 
 function readPsArgs(pid: number): string | null {
