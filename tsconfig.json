@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": true,
+    "types": [
+      "bun"
+    ],
+    "noEmit": true,
+    "paths": {
+      "@cctr/core": [
+        "./packages/core/src/index.ts"
+      ],
+      "@cctr/core/*": [
+        "./packages/core/src/*"
+      ],
+      "@cctr/agent": [
+        "./packages/agent/src/index.ts"
+      ]
+    }
+  },
+  "include": [
+    "packages/*/src",
+    "packages/*/test",
+    "apps/*/src",
+    "apps/*/test"
+  ]
+}

@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun test
+      - run: bun run build
+      - name: Smoke the binary against the fixture
+        run: |
+          CCTR_PROJECTS_DIR=packages/core/test/fixtures/2.1.267 ./cctr sessions list --format table
+          test "$(CCTR_PROJECTS_DIR=packages/core/test/fixtures/2.1.267 ./cctr sessions latest --format id)" = "aaaaaaaa-0000-4000-8000-000000000001"
+      - name: install.sh is valid POSIX sh
+        run: |
+          docker run --rm -v "$PWD:/mnt" koalaman/shellcheck:stable scripts/install.sh

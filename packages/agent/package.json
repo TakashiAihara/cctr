@@ -1,0 +1,12 @@
+{
+  "name": "@cctr/agent",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@cctr/core": "workspace:*",
+    "hono": "^4.7.0"
+  }
+}
