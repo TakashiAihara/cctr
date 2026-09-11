@@ -103,6 +103,8 @@ describe("isAgentProcess", () => {
       6: null,
       7: 'cctr search "agent run"',
       8: "/usr/bin/cctr sessions get agent run",
+      9: "sh -c /usr/bin/cctr agent run",
+      10: "  /usr/local/bin/cctr agent run --bind 0.0.0.0 --port 7411",
     });
     expect(isAgentProcess(1, t)).toBe(true);
     expect(isAgentProcess(2, t)).toBe(true);
@@ -112,5 +114,7 @@ describe("isAgentProcess", () => {
     expect(isAgentProcess(6, t)).toBe(false);
     expect(isAgentProcess(7, t)).toBe(false);
     expect(isAgentProcess(8, t)).toBe(false);
+    expect(isAgentProcess(9, t)).toBe(false);
+    expect(isAgentProcess(10, t)).toBe(true);
   });
 });
