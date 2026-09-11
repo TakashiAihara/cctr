@@ -44,6 +44,11 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           v="${RELEASE_TAG#v}"
+          # the trigger is "v*", which also fires on v, vfoo or vv0.1.1; only a semver goes into package.json
+          case "$v" in
+            [0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "not a release tag: $RELEASE_TAG" >&2; exit 1 ;;
+          esac
           V="$v" bun -e 'const f="package.json";const p=JSON.parse(await Bun.file(f).text());p.version=process.env.V;await Bun.write(f,JSON.stringify(p,null,2)+"\n")' || exit 1
           grep -q "\"version\": \"$v\"" package.json
       - name: Build binary
