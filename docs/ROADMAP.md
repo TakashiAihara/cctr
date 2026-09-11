@@ -121,7 +121,7 @@ Decided with the recommended option so work can proceed; each can be revisited.
 | Web UI | React + Vite SPA served by the agent's Hono, built into the binary | Single binary stays single |
 | MCP transport | stdio first; HTTP MCP later. MCP reads the files directly, no agent needed | Claude Code's local MCP default |
 | Redaction | Export and MCP output are redacted by default; the CLI prints raw and takes `--redact`. A minimal detector (usernames in paths, uuid-shaped ids, token shapes) sits on the MCP path from Phase 2 | MCP answers land in Claude's context. The CLI is read by the person whose files these are |
-| cchist compatibility | Every cchist subcommand keeps its name: `sessions list|latest`, `show`, `path`, `outline`, `read`, `stats`, `tokens`, `tools`, `bash`, `files`, `activity`, `commands`, `search`, `completion`. The migration guide maps each to the phase it lands in | Least rewriting for the people and scripts calling it |
+| cchist compatibility | Every cchist subcommand keeps its name: `sessions list` / `sessions latest`, `show`, `path`, `outline`, `read`, `stats`, `tokens`, `tools`, `bash`, `files`, `activity`, `commands`, `search`, `completion`. The migration guide maps each to the phase it lands in | Least rewriting for the people and scripts calling it |
 | State | Core emits facts (last record type, elapsed), never state names | ccx's "emits facts, never recommendations" |
 
 ## Order

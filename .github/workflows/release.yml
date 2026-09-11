@@ -5,8 +5,10 @@ on:
     tags:
       - "v*"
 
+# read by default: the build job runs third-party code (bun install) and must not hold a
+# token that can write the repository; only the release job gets write
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -28,6 +30,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
@@ -45,6 +49,8 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -55,12 +61,15 @@ jobs:
         run: cd artifacts && sha256sum cctr-* > SHA256SUMS && cat SHA256SUMS
       # a tag with a hyphen (v0.1.0-rc.1) is a prerelease: it does not become `latest`,
       # so install.sh keeps serving the last stable one unless CCTR_VERSION pins it
+      # the tag name goes through an env var: an expression expanded straight into the
+      # script would let a tag containing $(...) run as shell
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          case "${{ github.ref_name }}" in
+          case "$RELEASE_TAG" in
             *-*) pre=--prerelease ;;
             *) pre= ;;
           esac
-          gh release create "${{ github.ref_name }}" $pre --generate-notes artifacts/*
+          gh release create "$RELEASE_TAG" $pre --generate-notes artifacts/*

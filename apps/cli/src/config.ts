@@ -21,9 +21,12 @@ export function remotesPath(): string {
 
 /** Missing file is no remotes; a broken file is an error, not silently no remotes. */
 export function loadRemotes(path = remotesPath()): Remotes {
-  if (!existsSync(path)) return {};
+  // a null-prototype map, so a remote named `toString` or `constructor` cannot resolve to Object.prototype
+  const out: Remotes = Object.create(null);
+  if (!existsSync(path)) return out;
   const raw = JSON.parse(readFileSync(path, "utf8")) as { remotes?: Remotes };
-  return raw.remotes ?? {};
+  for (const [k, v] of Object.entries(raw.remotes ?? {})) out[k] = v;
+  return out;
 }
 
 export function saveRemotes(remotes: Remotes, path = remotesPath()): void {
@@ -55,9 +58,12 @@ const TOKEN_MIN_LENGTH = 16;
  */
 export function hostToken(): string {
   const p = join(stateDir(), "token");
-  const existing = existsSync(p) ? readFileSync(p, "utf8").trim() : "";
-  if (existing.length >= TOKEN_MIN_LENGTH) return existing;
-  if (existing) throw new Error(`${p} holds something too short to be a token; delete it to get a new one`);
+  if (existsSync(p)) {
+    const existing = readFileSync(p, "utf8").trim();
+    if (existing.length >= TOKEN_MIN_LENGTH) return existing;
+    // empty or truncated: refusing beats regenerating, which would silently invalidate every remote holding the old one
+    throw new Error(`${p} holds something too short to be a token; delete it to get a new one`);
+  }
   const t = randomToken();
   try {
     // exclusive create: two first-time callers cannot end up holding different tokens

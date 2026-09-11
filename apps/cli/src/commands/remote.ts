@@ -20,12 +20,18 @@ export function registerRemote(program: Command): void {
     .option("--no-check", "register without contacting the host")
     .action(
       async (name: string, opts: { url?: string; token?: string; ssh?: string; command?: string; check: boolean }) => {
-        if (!/^[A-Za-z0-9._-]+$/.test(name) || name === "local" || name === "all")
+        if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(name) || name === "local" || name === "all") {
           throw new CliError(`bad remote name: ${name}`, 2);
+        }
         let r: Remote;
         if (opts.url && !opts.ssh) {
           if (!opts.token) throw new CliError("--url needs --token (run `cctr agent token` on that host)", 2);
           r = { kind: "http", url: opts.url, token: opts.token };
+          if (!isLoopbackUrl(opts.url) && new URL(opts.url).protocol === "http:") {
+            log(
+              `cctr: ${name}: plain http beyond loopback sends the token in the clear; prefer --ssh or a tunnel (README, "Which path")`,
+            );
+          }
         } else if (opts.ssh && !opts.url) {
           if (!isSshTarget(opts.ssh)) {
             throw new CliError(
@@ -92,4 +98,9 @@ function describe(r: Remote): Record<string, string> {
   return r.kind === "http"
     ? { kind: "http", url: r.url }
     : { kind: "ssh", target: r.target, ...(r.command ? { command: r.command } : {}) };
+}
+
+function isLoopbackUrl(u: string): boolean {
+  const h = new URL(u).hostname.replace(/^\[|\]$/g, "");
+  return h === "localhost" || h === "::1" || h.startsWith("127.");
 }

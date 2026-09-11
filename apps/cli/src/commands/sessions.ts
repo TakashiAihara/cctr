@@ -61,7 +61,12 @@ export function registerSessions(program: Command): void {
       const g = cmd.optsWithGlobals() as Common;
       const src = resolveHosts(hostOf(g.host, id));
       if (!(await src.getSession(id))) throw new CliError(`session not found: ${id}`, EXIT_NOT_FOUND);
-      for await (const r of src.readSession(id)) process.stdout.write(JSON.stringify(r.raw) + "\n");
+      for await (const r of src.readSession(id)) {
+        // a slow pipe must not make the process buffer the whole transcript
+        if (!process.stdout.write(JSON.stringify(r.raw) + "\n")) {
+          await new Promise((res) => process.stdout.once("drain", res));
+        }
+      }
     });
 }
 

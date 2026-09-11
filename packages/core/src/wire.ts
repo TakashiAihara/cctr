@@ -37,6 +37,12 @@ export function toWire(m: SessionMeta): Session {
   });
 }
 
+/** SessionMeta holds numbers; a uint64 beyond 2^53 would be silently rounded, so it is refused instead. */
+function num(v: bigint, field: string): number {
+  if (v > BigInt(Number.MAX_SAFE_INTEGER)) throw new RangeError(`${field} ${v} exceeds Number.MAX_SAFE_INTEGER`);
+  return Number(v);
+}
+
 export function toMeta(s: Session, host: string): SessionMeta {
   return {
     id: s.id,
@@ -50,19 +56,19 @@ export function toMeta(s: Session, host: string): SessionMeta {
     lastPrompt: s.lastPrompt || null,
     firstTs: s.firstTs ? timestampDate(s.firstTs).toISOString() : null,
     lastTs: s.lastTs ? timestampDate(s.lastTs).toISOString() : null,
-    durationMs: Number(s.durationMs),
-    records: Number(s.records),
-    userTurns: Number(s.userTurns),
-    assistantMsgs: Number(s.assistantMsgs),
+    durationMs: num(s.durationMs, "durationMs"),
+    records: num(s.records, "records"),
+    userTurns: num(s.userTurns, "userTurns"),
+    assistantMsgs: num(s.assistantMsgs, "assistantMsgs"),
     models: s.models,
     usage: {
-      input: Number(s.usage?.input ?? 0n),
-      output: Number(s.usage?.output ?? 0n),
-      cacheRead: Number(s.usage?.cacheRead ?? 0n),
-      cacheCreate: Number(s.usage?.cacheCreate ?? 0n),
+      input: num(s.usage?.input ?? 0n, "usage.input"),
+      output: num(s.usage?.output ?? 0n, "usage.output"),
+      cacheRead: num(s.usage?.cacheRead ?? 0n, "usage.cacheRead"),
+      cacheCreate: num(s.usage?.cacheCreate ?? 0n, "usage.cacheCreate"),
     },
-    tools: Object.fromEntries(Object.entries(s.tools).map(([k, v]) => [k, Number(v)])),
-    sizeBytes: Number(s.sizeBytes),
+    tools: Object.fromEntries(Object.entries(s.tools).map(([k, v]) => [k, num(v, `tools.${k}`)])),
+    sizeBytes: num(s.sizeBytes, "sizeBytes"),
     mtimeMs: s.mtime ? timestampDate(s.mtime).getTime() : 0,
   };
 }

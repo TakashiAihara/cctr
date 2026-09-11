@@ -204,6 +204,40 @@ describe("ssh target and quoting", () => {
   });
 });
 
+describe("ambiguous prefix", () => {
+  test("a prefix matching two sessions is refused; an exact id still wins", async () => {
+    const { AmbiguousIdError, resolveSessionFile } = await import("../src");
+    const files = [
+      { file: "/p/abc111.jsonl", mtimeMs: 2, sizeBytes: 0 },
+      { file: "/p/abc222.jsonl", mtimeMs: 1, sizeBytes: 0 },
+      { file: "/p/abc.jsonl", mtimeMs: 0, sizeBytes: 0 },
+    ];
+    expect(() => resolveSessionFile("abc1", files)).not.toThrow();
+    expect(resolveSessionFile("abc1", files)?.file).toBe("/p/abc111.jsonl");
+    expect(() => resolveSessionFile("abc2", files)).not.toThrow();
+    expect(resolveSessionFile("abc", files)?.file).toBe("/p/abc.jsonl");
+    expect(() => resolveSessionFile("ab", files)).toThrow(AmbiguousIdError);
+    expect(resolveSessionFile("zzz", files)).toBeNull();
+  });
+});
+
+describe("wire", () => {
+  test("a uint64 beyond 2^53 is refused rather than rounded", async () => {
+    const { create } = await import("@bufbuild/protobuf");
+    const { SessionSchema } = await import("@cctr/proto/cctr/v1/transcripts_pb");
+    const { toMeta, toWire } = await import("../src");
+    const big = create(SessionSchema, { id: "x", records: 2n ** 53n + 1n });
+    expect(() => toMeta(big, "h")).toThrow(RangeError);
+    const ok = create(SessionSchema, { id: "x", records: 2n ** 53n - 1n });
+    expect(toMeta(ok, "h").records).toBe(Number.MAX_SAFE_INTEGER);
+    // and a round trip keeps the numbers
+    const m = meta("rt", "h", "2026-09-01T00:00:00.000Z");
+    m.usage = { input: 1, output: 2, cacheRead: 3, cacheCreate: 4 };
+    m.tools = { Bash: 5 };
+    expect(toMeta(toWire(m), "h")).toEqual({ ...m, firstTs: null, mtimeMs: 0 });
+  });
+});
+
 describe("lines", () => {
   async function collect(chunks: string[]): Promise<string[]> {
     const enc = new TextEncoder();

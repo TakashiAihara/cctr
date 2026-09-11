@@ -73,9 +73,7 @@ export function registerAgent(program: Command): void {
     .command("stop")
     .description("stop the background agent")
     .action(async () => {
-      // looser than liveState on purpose: an agent from an older build answers without a pid,
-      // and it still has to be stoppable. The process in the state file must be alive, though.
-      const st = (await liveState()) ?? (await stoppableState());
+      const st = await liveState();
       if (!st) {
         clearState();
         throw new CliError("agent is not running", 1);
@@ -114,15 +112,6 @@ export function registerAgent(program: Command): void {
     .action(() => {
       process.stdout.write(hostToken() + "\n");
     });
-}
-
-/** The state file's process is alive and something on its port answers /meta as cctr. */
-async function stoppableState(): Promise<AgentState | null> {
-  const st = loadAgentState();
-  if (!st) return null;
-  if (!alive(st.pid)) return null;
-  const body = await metaOf(st);
-  return body?.name === "cctr" ? st : null;
 }
 
 function alive(pid: number): boolean {

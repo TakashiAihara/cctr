@@ -31,12 +31,32 @@ export function listSessionFiles(dir = projectsDir()): FileEntry[] {
 }
 
 /**
- * Resolve a session id (a unique prefix is fine) or the literal `latest` to a
- * file. Files are newest-first, so a prefix picks the most recent match.
+ * Resolve a session id, a unique prefix of one, or the literal `latest`, to a
+ * file. An exact id always wins; a prefix that matches several sessions is an
+ * error rather than a guess, since a guess would hand back the wrong transcript.
  */
 export function resolveSessionFile(idOrLatest: string, files = listSessionFiles()): FileEntry | null {
   if (idOrLatest === "latest") return files[0] ?? null;
-  return files.find((f) => basename(f.file, ".jsonl").startsWith(idOrLatest)) ?? null;
+  const exact = files.find((f) => basename(f.file, ".jsonl") === idOrLatest);
+  if (exact) return exact;
+  const matches = files.filter((f) => basename(f.file, ".jsonl").startsWith(idOrLatest));
+  if (matches.length > 1) {
+    throw new AmbiguousIdError(
+      idOrLatest,
+      matches.map((f) => basename(f.file, ".jsonl")),
+    );
+  }
+  return matches[0] ?? null;
+}
+
+export class AmbiguousIdError extends Error {
+  constructor(
+    readonly prefix: string,
+    readonly ids: string[],
+  ) {
+    const shown = ids.slice(0, 3).join(", ") + (ids.length > 3 ? ", ..." : "");
+    super(`ambiguous session id ${prefix}: matches ${ids.length} sessions (${shown})`);
+  }
 }
 
 function safeReaddir(p: string): string[] {
