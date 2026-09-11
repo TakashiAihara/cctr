@@ -53,7 +53,14 @@ jobs:
           merge-multiple: true
       - name: Checksums
         run: cd artifacts && sha256sum cctr-* > SHA256SUMS && cat SHA256SUMS
+      # a tag with a hyphen (v0.1.0-rc.1) is a prerelease: it does not become `latest`,
+      # so install.sh keeps serving the last stable one unless CCTR_VERSION pins it
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create ${{ github.ref_name }} --generate-notes artifacts/*
+        run: |
+          case "${{ github.ref_name }}" in
+            *-*) pre=--prerelease ;;
+            *) pre= ;;
+          esac
+          gh release create "${{ github.ref_name }}" $pre --generate-notes artifacts/*
