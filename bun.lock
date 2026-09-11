@@ -28,21 +28,45 @@
       "name": "@cctr/agent",
       "version": "0.1.0",
       "dependencies": {
+        "@bufbuild/protobuf": "^2.14.0",
         "@cctr/core": "workspace:*",
+        "@cctr/proto": "workspace:*",
+        "@connectrpc/connect": "^2.1.0",
         "hono": "^4.7.0",
       },
     },
     "packages/core": {
       "name": "@cctr/core",
       "version": "0.1.0",
+      "dependencies": {
+        "@bufbuild/protobuf": "^2.14.0",
+        "@cctr/proto": "workspace:*",
+        "@connectrpc/connect": "^2.1.0",
+        "@connectrpc/connect-web": "^2.1.0",
+      },
+    },
+    "packages/proto": {
+      "name": "@cctr/proto",
+      "version": "0.1.0",
+      "dependencies": {
+        "@bufbuild/protobuf": "^2.14.0",
+      },
     },
   },
   "packages": {
+    "@bufbuild/protobuf": ["@bufbuild/protobuf@2.15.0", "", {}, "sha512-DAheWUkVr/SJTWCc+lg9dhY0eN4SaWlf4+bG1KzHeXbnqt0AfB/NX0Z+VunGlM1ki1B4zVvye27MpKh/svySUA=="],
+
     "@cctr/agent": ["@cctr/agent@workspace:packages/agent"],
 
     "@cctr/cli": ["@cctr/cli@workspace:apps/cli"],
 
     "@cctr/core": ["@cctr/core@workspace:packages/core"],
+
+    "@cctr/proto": ["@cctr/proto@workspace:packages/proto"],
+
+    "@connectrpc/connect": ["@connectrpc/connect@2.2.0", "", { "peerDependencies": { "@bufbuild/protobuf": "^2.7.0" } }, "sha512-M63OQ1ZFcPUm85CuewJ9G9CMV8LjzGR9935xOnXNQGSazAbwMb3x2W7vXBYM1zqrP7XFD8uxp/dUAhirclgwnQ=="],
+
+    "@connectrpc/connect-web": ["@connectrpc/connect-web@2.2.0", "", { "peerDependencies": { "@bufbuild/protobuf": "^2.7.0", "@connectrpc/connect": "2.2.0" } }, "sha512-uuBUcBTYfb/r1o98LzCCZk1H90yx0vmZ5m21dpw/q4EUwsKwkCDGI8H0aEdjcZld+Q2jJ5A5ADvPqfb6lzQ/sg=="],
 
     "@oxfmt/binding-android-arm-eabi": ["@oxfmt/binding-android-arm-eabi@0.47.0", "", { "os": "android", "cpu": "arm" }, "sha512-KrMQRdMi/upr81qT4ijK6X6BNp6jqpMY7FwILQnwIy9QLc3qpnhUx5rsCLGzn4ewsCQ0CNAspN2ogmP1GXLyLw=="],
 

@@ -75,14 +75,19 @@ cctr agent stop
 
 The token is one per host, kept in `~/.local/state/cctr/token` (mode 600). Remotes are kept in `~/.config/cctr/remotes.json` (mode 600).
 
-Routes, all read-only and all behind `Authorization: Bearer <token>`:
+The wire contract is `TranscriptService` (Connect + protobuf, `packages/proto/cctr/v1/transcripts.proto`), the same arrangement ccx uses, so it can move there unchanged. Every procedure is read-only and behind `Authorization: Bearer <token>`. Connect speaks JSON too, so `curl` works:
 
-| Route | Returns |
+```bash
+curl -X POST -H "Authorization: Bearer $(cctr agent token)" -H 'content-type: application/json' -d '{}' \
+  http://127.0.0.1:7411/cctr.v1.TranscriptService/GetMeta
+```
+
+| Procedure | Returns |
 |---|---|
-| `GET /meta` | name, version, schema version, host, projects dir |
-| `GET /sessions?limit&since&cwd` | session metadata, newest first |
-| `GET /sessions/:id` | one session |
-| `GET /sessions/:id/records` | the transcript as NDJSON |
+| `GetMeta` | name, version, schema version, machine, projects dir, pid |
+| `ListSessions` (`cwd`, `since`, `limit`) | sessions, newest first |
+| `GetSession` (`id`) | one session; `NotFound` if none |
+| `ReadRecords` (`id`) | the transcript, one JSONL line per streamed message |
 
 ## Exit codes
 
@@ -110,7 +115,7 @@ bun run typecheck
 bun run build          # ./cctr
 ```
 
-Layout: `packages/core` (parser, session model, sources: local / HTTP / SSH), `packages/agent` (the HTTP app), `apps/cli`.
+Layout: `packages/proto` (the Connect contract; regenerate with `buf generate packages/proto --template packages/proto/buf.gen.ts.yaml -o packages/proto`), `packages/core` (parser, session model, sources: local / HTTP / SSH), `packages/agent` (TranscriptService on Hono), `apps/cli`.
 
 ## License
 

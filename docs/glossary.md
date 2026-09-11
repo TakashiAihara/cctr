@@ -22,5 +22,6 @@ One word, one meaning. Each entry says where the thing exists so the definition 
 - token: the per-machine bearer secret the agent requires. `~/.local/state/cctr/token`
 - machine id: what identifies a machine across the fleet. hostname unless `CCX_MACHINE` is set
 - schema version: `SCHEMA_VERSION` in `packages/core/src/source.ts`; bumped when `SessionMeta` or the record shape changes incompatibly
+- contract: `TranscriptService` in `packages/proto/cctr/v1/transcripts.proto`; what the agent serves and `HttpSource` consumes. Generated code under `packages/proto/gen/ts` is committed
 - action provider: the slot for "do something with this session" (resume, send). Phase 7; none ships with cctr
 - redact: hide secrets and PII before output leaves. Default on for export and MCP, off for the CLI

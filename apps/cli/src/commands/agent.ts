@@ -129,11 +129,14 @@ async function stoppableState(): Promise<AgentState | null> {
   return body?.name === "cctr" ? st : null;
 }
 
+/** GetMeta as a plain Connect JSON POST: no client to build for a liveness probe. */
 async function metaOf(st: AgentState): Promise<{ name?: string; pid?: number } | null> {
   const host = st.bind === "0.0.0.0" ? "127.0.0.1" : st.bind;
   try {
-    const res = await fetch(`http://${host}:${st.port}/meta`, {
-      headers: { authorization: "Bearer " + st.token },
+    const res = await fetch(`http://${host}:${st.port}/cctr.v1.TranscriptService/GetMeta`, {
+      method: "POST",
+      headers: { authorization: "Bearer " + st.token, "content-type": "application/json" },
+      body: "{}",
       signal: AbortSignal.timeout(1500),
     });
     return res.ok ? ((await res.json()) as { name?: string; pid?: number }) : null;

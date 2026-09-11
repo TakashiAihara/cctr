@@ -19,6 +19,9 @@
       ],
       "@cctr/agent": [
         "./packages/agent/src/index.ts"
+      ],
+      "@cctr/proto/*": [
+        "./packages/proto/gen/ts/*"
       ]
     }
   },
@@ -26,6 +29,7 @@
     "packages/*/src",
     "packages/*/test",
     "apps/*/src",
-    "apps/*/test"
+    "apps/*/test",
+    "packages/proto/gen"
   ]
 }

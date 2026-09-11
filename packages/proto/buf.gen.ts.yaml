@@ -1,0 +1,11 @@
+version: v2
+
+# Same layout as ccx/packages/proto so the contract can move there unchanged:
+# generated code lives in gen/ts, is committed, and CI regenerates and diffs it.
+#
+#   buf generate packages/proto --template packages/proto/buf.gen.ts.yaml -o packages/proto
+plugins:
+  # message types + service descriptors; connect-es v2 consumes the descriptors directly
+  - remote: buf.build/bufbuild/es:v2.14.0
+    out: gen/ts
+    opt: target=ts

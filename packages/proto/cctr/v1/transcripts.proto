@@ -1,0 +1,105 @@
+syntax = "proto3";
+
+package cctr.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// One machine's transcripts, read-only. The same contract whether the caller
+// is the CLI on another machine, the Web UI, or ccx pulling machines together.
+//
+// Facts only: what the transcript files say, never what to do about them.
+service TranscriptService {
+  // What this cctr is: version, schema version, machine.
+  rpc GetMeta(GetMetaRequest) returns (GetMetaResponse);
+
+  // Sessions on this machine, newest first.
+  rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse);
+
+  // One session by id, a unique prefix of one, or `latest`.
+  rpc GetSession(GetSessionRequest) returns (GetSessionResponse);
+
+  // The records of one session as they are on disk, one JSONL line each.
+  // Streamed: sessions of tens of megabytes exist.
+  rpc ReadRecords(ReadRecordsRequest) returns (stream ReadRecordsResponse);
+}
+
+message GetMetaRequest {}
+
+message GetMetaResponse {
+  // Always "cctr".
+  string name = 1;
+  string version = 2;
+  // Bumped when Session or the record shape changes incompatibly.
+  uint32 schema_version = 3;
+  // hostname unless CCX_MACHINE overrides it.
+  string machine = 4;
+  string projects_dir = 5;
+  // The serving process, so a CLI on the same machine can check it is talking
+  // to the agent it started.
+  uint32 pid = 6;
+}
+
+message Usage {
+  uint64 input = 1;
+  uint64 output = 2;
+  uint64 cache_read = 3;
+  uint64 cache_create = 4;
+}
+
+// One transcript session: a JSONL file, aggregated in one pass.
+message Session {
+  string id = 1;
+  string file = 2;
+  string cwd = 3;
+  string git_branch = 4;
+  // Claude Code version that wrote it.
+  string version = 5;
+  string entrypoint = 6;
+  string title = 7;
+  string last_prompt = 8;
+  google.protobuf.Timestamp first_ts = 9;
+  google.protobuf.Timestamp last_ts = 10;
+  uint64 duration_ms = 11;
+  uint64 records = 12;
+  uint64 user_turns = 13;
+  uint64 assistant_msgs = 14;
+  repeated string models = 15;
+  Usage usage = 16;
+  // tool name -> call count
+  map<string, uint64> tools = 17;
+  uint64 size_bytes = 18;
+  google.protobuf.Timestamp mtime = 19;
+}
+
+message ListSessionsRequest {
+  // Empty means no filter.
+  string cwd = 1;
+  // Only sessions with a record at or after this time.
+  google.protobuf.Timestamp since = 2;
+  // 0 means no limit.
+  uint32 limit = 3;
+}
+
+message ListSessionsResponse {
+  // last_ts newest first.
+  repeated Session sessions = 1;
+}
+
+message GetSessionRequest {
+  string id = 1;
+}
+
+message GetSessionResponse {
+  Session session = 1;
+}
+
+message ReadRecordsRequest {
+  string id = 1;
+}
+
+// One JSONL line, verbatim. Kept opaque so the wire format never has to know
+// what Claude Code put in the record; the reader parses it with the same
+// parser as a local file.
+message ReadRecordsResponse {
+  string line = 1;
+}

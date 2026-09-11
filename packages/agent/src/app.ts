@@ -1,5 +1,16 @@
+import { create } from "@bufbuild/protobuf";
+import { timestampDate } from "@bufbuild/protobuf/wkt";
+import { Code, ConnectError, type ServiceImpl, createConnectRouter } from "@connectrpc/connect";
+import { createFetchHandler } from "@connectrpc/connect/protocol";
+import { type Source, toWire } from "@cctr/core";
+import {
+  GetMetaResponseSchema,
+  GetSessionResponseSchema,
+  ListSessionsResponseSchema,
+  ReadRecordsResponseSchema,
+  TranscriptService,
+} from "@cctr/proto/cctr/v1/transcripts_pb";
 import { Hono } from "hono";
-import type { Source } from "@cctr/core";
 
 export type AppOptions = {
   source: Source;
@@ -8,13 +19,21 @@ export type AppOptions = {
 };
 
 /**
- * The HTTP face of one machine's transcripts. Read-only: the JSONL is never
- * written through here. The same routes serve the CLI on another host, the
- * Web UI, and (later) ccx pulling several machines together.
+ * The HTTP face of one machine's transcripts: TranscriptService (Connect) on
+ * Hono. Read-only, and the same contract whether the caller is the CLI on
+ * another machine, the Web UI, or ccx pulling machines together.
+ *
+ * connect-node wants node:http and does not fit Bun's fetch server; the core
+ * createFetchHandler turns each universal handler into Request -> Response,
+ * and that goes on a Hono route — the same arrangement as ccx-center.
  */
 export function createApp({ source, token }: AppOptions): Hono {
   if (token.length < 16) throw new Error("agent token must be at least 16 characters");
   const expected = digest("Bearer " + token);
+
+  const router = createConnectRouter();
+  router.service(TranscriptService, transcriptImpl(source));
+
   const app = new Hono();
 
   app.use("*", async (c, next) => {
@@ -23,36 +42,51 @@ export function createApp({ source, token }: AppOptions): Hono {
     await next();
   });
 
-  // pid lets the CLI on this machine check it is talking to the process it started
-  app.get("/meta", async (c) => c.json({ ...(await source.meta()), pid: process.pid }));
-
-  app.get("/sessions", async (c) => {
-    const q = c.req.query();
-    const limit = q.limit ? Number.parseInt(q.limit, 10) : undefined;
-    if (q.limit && !(Number.isInteger(limit) && limit! > 0))
-      return c.json({ error: "limit must be a positive integer" }, 400);
-    return c.json(await source.listSessions({ cwd: q.cwd, since: q.since, limit }));
-  });
-
-  app.get("/sessions/:id", async (c) => {
-    const m = await source.getSession(c.req.param("id"));
-    return m ? c.json(m) : c.json({ error: "not found" }, 404);
-  });
-
-  app.get("/sessions/:id/records", async (c) => {
-    const id = c.req.param("id");
-    if (!(await source.getSession(id))) return c.json({ error: "not found" }, 404);
-    const enc = new TextEncoder();
-    const body = new ReadableStream<Uint8Array>({
-      async start(ctrl) {
-        for await (const r of source.readSession(id)) ctrl.enqueue(enc.encode(JSON.stringify(r.raw) + "\n"));
-        ctrl.close();
-      },
-    });
-    return new Response(body, { headers: { "content-type": "application/x-ndjson" } });
-  });
+  for (const uHandler of router.handlers) {
+    const handler = createFetchHandler(uHandler);
+    app.all(uHandler.requestPath, (c) => handler(c.req.raw));
+  }
 
   return app;
+}
+
+export function transcriptImpl(source: Source): ServiceImpl<typeof TranscriptService> {
+  return {
+    async getMeta() {
+      const m = await source.meta();
+      return create(GetMetaResponseSchema, {
+        name: m.name,
+        version: m.version,
+        schemaVersion: m.schemaVersion,
+        machine: m.host,
+        projectsDir: m.projectsDir,
+        // lets the CLI on this machine check it is talking to the process it started
+        pid: process.pid,
+      });
+    },
+
+    async listSessions(req) {
+      const metas = await source.listSessions({
+        cwd: req.cwd || undefined,
+        since: req.since ? timestampDate(req.since).toISOString() : undefined,
+        limit: req.limit || undefined,
+      });
+      return create(ListSessionsResponseSchema, { sessions: metas.map(toWire) });
+    },
+
+    async getSession(req) {
+      const m = await source.getSession(req.id);
+      if (!m) throw new ConnectError(`session not found: ${req.id}`, Code.NotFound);
+      return create(GetSessionResponseSchema, { session: toWire(m) });
+    },
+
+    async *readRecords(req) {
+      if (!(await source.getSession(req.id))) throw new ConnectError(`session not found: ${req.id}`, Code.NotFound);
+      for await (const r of source.readSession(req.id)) {
+        yield create(ReadRecordsResponseSchema, { line: JSON.stringify(r.raw) });
+      }
+    },
+  };
 }
 
 /** Both sides are hashed first, so the comparison is fixed-length and leaks neither length nor prefix. */
