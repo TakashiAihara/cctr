@@ -16,6 +16,8 @@ export type AppOptions = {
   source: Source;
   /** Every request must carry `Authorization: Bearer <token>`. */
   token: string;
+  /** Reported on /healthz; defaults to the package version the CLI passes in. */
+  version?: string;
 };
 
 /**
@@ -27,7 +29,7 @@ export type AppOptions = {
  * createFetchHandler turns each universal handler into Request -> Response,
  * and that goes on a Hono route — the same arrangement as ccx-center.
  */
-export function createApp({ source, token }: AppOptions): Hono {
+export function createApp({ source, token, version = "0.0.0" }: AppOptions): Hono {
   if (token.length < 16) throw new Error("agent token must be at least 16 characters");
   const expected = digest("Bearer " + token);
 
@@ -35,6 +37,11 @@ export function createApp({ source, token }: AppOptions): Hono {
   router.service(TranscriptService, transcriptImpl(source));
 
   const app = new Hono();
+
+  // Unauthenticated on purpose and says nothing about the transcripts: the CLI on this
+  // machine identifies the process on the port with it, so the token never has to be
+  // offered to a listener that has not proved it is ours. Same shape as ccx-center.
+  app.get("/healthz", (c) => c.json({ name: "cctr", pid: process.pid, version }));
 
   app.use("*", async (c, next) => {
     const auth = c.req.header("authorization") ?? "";

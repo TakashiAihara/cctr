@@ -71,7 +71,18 @@ describe("isLocalBind", () => {
     ],
   } as never;
   test("wildcards, loopback and this machine's addresses pass; names and other addresses do not", () => {
-    for (const b of ["0.0.0.0", "::", "localhost", "::1", "127.0.0.1", "127.1.2.3", "192.168.0.121", "fe80::1"]) {
+    for (const b of [
+      "0.0.0.0",
+      "::",
+      "localhost",
+      "::1",
+      "0:0:0:0:0:0:0:1",
+      "FE80::1",
+      "127.0.0.1",
+      "127.1.2.3",
+      "192.168.0.121",
+      "fe80::1",
+    ]) {
       expect(isLocalBind(b, ifaces)).toBe(true);
     }
     for (const b of ["example.com", "127.attacker.example", "10.0.0.9", "203.0.113.1", ""]) {
