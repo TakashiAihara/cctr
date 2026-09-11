@@ -10,9 +10,10 @@ export function registerMeta(program: Command): void {
       const g = cmd.optsWithGlobals() as { host?: string };
       const sources = resolveHosts(g.host).sources;
       const results = await Promise.allSettled(sources.map((s) => s.meta()));
+      // alias last: a remote reached over SSH answers with its own CLI's `alias: "local"`
       const out = results.map((r, i) =>
         r.status === "fulfilled"
-          ? { alias: sources[i]!.host, ...r.value }
+          ? { ...r.value, alias: sources[i]!.host }
           : { alias: sources[i]!.host, error: String(r.reason instanceof Error ? r.reason.message : r.reason) },
       );
       for (const o of out) if ("error" in o) log(`cctr: ${o.alias}: ${o.error}`);
