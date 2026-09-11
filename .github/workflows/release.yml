@@ -44,7 +44,7 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           v="${RELEASE_TAG#v}"
-          bun -e 'const f="package.json";const p=JSON.parse(await Bun.file(f).text());p.version=process.env.V;await Bun.write(f,JSON.stringify(p,null,2)+"\n")' V="$v" || exit 1
+          V="$v" bun -e 'const f="package.json";const p=JSON.parse(await Bun.file(f).text());p.version=process.env.V;await Bun.write(f,JSON.stringify(p,null,2)+"\n")' || exit 1
           grep -q "\"version\": \"$v\"" package.json
       - name: Build binary
         run: >
