@@ -1,4 +1,6 @@
 import { spawn } from "node:child_process";
+import { isIP } from "node:net";
+import { networkInterfaces } from "node:os";
 import { existsSync, unlinkSync } from "node:fs";
 import type { Command } from "commander";
 import { createApp } from "@cctr/agent";
@@ -60,6 +62,9 @@ export function registerAgent(program: Command): void {
       if (running)
         throw new CliError(`agent already running (pid ${running.pid}, http://${running.bind}:${running.port})`, 1);
       const port = parsePort(opts.port);
+      // the token is about to be offered to whatever answers at bind:port, so bind must be
+      // an address of this machine, never a name or an address somewhere else
+      if (!isLocalBind(opts.bind)) throw new CliError(`--bind must be an address of this machine; got ${opts.bind}`, 2);
       if (port !== 0) {
         // the state file can be gone while an agent still holds the port (a crash of the CLI
         // that started it, a second start racing this one); take it back rather than spawn a
@@ -86,7 +91,13 @@ export function registerAgent(program: Command): void {
       child.unref();
       // the child writes its state file once it is listening; wait for that rather than trusting the spawn
       const st = await waitFor(() => liveState(), 5000);
-      if (!st) throw new CliError("agent did not come up within 5s", 1);
+      if (!st) {
+        // between the port check and the child's bind someone else may have taken the port
+        if (port !== 0 && (await portInUse(opts.bind, port))) {
+          throw new CliError(`port ${port} was taken by another process before the agent could bind`, 1);
+        }
+        throw new CliError("agent did not come up within 5s", 1);
+      }
       json({ pid: st.pid, url: `http://${probeHost(st.bind)}:${st.port}`, startedAt: st.startedAt });
     });
 
@@ -135,15 +146,27 @@ export function registerAgent(program: Command): void {
     });
 }
 
-/** Bind and release once; EADDRINUSE means someone else has it. */
+/** Bind and release once; only EADDRINUSE means someone else has it, any other bind error is the caller's. */
 async function portInUse(bind: string, port: number): Promise<boolean> {
   try {
     const srv = Bun.serve({ hostname: bind, port, fetch: () => new Response("") });
     srv.stop(true);
     return false;
-  } catch {
-    return true;
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === "EADDRINUSE") return true;
+    throw e;
   }
+}
+
+/** Loopback, a wildcard, or an address one of this machine's interfaces has. Names are not accepted. */
+export function isLocalBind(bind: string, ifaces = networkInterfaces()): boolean {
+  if (bind === "0.0.0.0" || bind === "::" || bind === "localhost" || bind === "::1") return true;
+  if (isIP(bind) === 0) return false;
+  if (bind.startsWith("127.")) return true;
+  for (const list of Object.values(ifaces)) {
+    for (const i of list ?? []) if (i.address === bind || i.address.split("%")[0] === bind) return true;
+  }
+  return false;
 }
 
 function alive(pid: number): boolean {
