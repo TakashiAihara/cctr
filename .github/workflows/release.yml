@@ -1,0 +1,75 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+# read by default: the build job runs third-party code (bun install) and must not hold a
+# token that can write the repository; only the release job gets write
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: bun-linux-x64
+            artifact: cctr-linux-x64
+          - os: ubuntu-latest
+            target: bun-linux-arm64
+            artifact: cctr-linux-arm64
+          - os: macos-latest
+            target: bun-darwin-arm64
+            artifact: cctr-darwin-arm64
+          - os: ubuntu-latest
+            target: bun-darwin-x64
+            artifact: cctr-darwin-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - name: Build binary
+        run: >
+          bun build apps/cli/src/index.ts --compile
+          --target ${{ matrix.target }}
+          --outfile ${{ matrix.artifact }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Checksums
+        run: cd artifacts && sha256sum cctr-* > SHA256SUMS && cat SHA256SUMS
+      # a tag with a hyphen (v0.1.0-rc.1) is a prerelease: it does not become `latest`,
+      # so install.sh keeps serving the last stable one unless CCTR_VERSION pins it
+      # the tag name goes through an env var: an expression expanded straight into the
+      # script would let a tag containing $(...) run as shell
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          case "$RELEASE_TAG" in
+            *-*) pre=--prerelease ;;
+            *) pre= ;;
+          esac
+          gh release create "$RELEASE_TAG" $pre --generate-notes artifacts/*

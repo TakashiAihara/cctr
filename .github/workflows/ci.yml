@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun test
+      - run: bun run build
+      - name: Smoke the binary against the fixture
+        run: |
+          # `latest` is by file mtime; a fresh checkout gives every fixture the same one
+          touch packages/core/test/fixtures/2.1.267/-home-u-proj-a/aaaaaaaa-0000-4000-8000-000000000001.jsonl
+          CCTR_PROJECTS_DIR=packages/core/test/fixtures/2.1.267 ./cctr sessions list --format table
+          test "$(CCTR_PROJECTS_DIR=packages/core/test/fixtures/2.1.267 ./cctr sessions latest --format id)" = "aaaaaaaa-0000-4000-8000-000000000001"
+      - uses: bufbuild/buf-action@v1
+        with:
+          setup_only: true
+      - name: proto lint
+        run: buf lint packages/proto
+      # generated code is committed; a proto edited without regenerating fails here
+      - name: generated code is in sync with the schema
+        run: |
+          buf generate packages/proto --template packages/proto/buf.gen.ts.yaml -o packages/proto
+          git add --intent-to-add packages/proto/gen
+          git diff --exit-code -- packages/proto/gen
+      - name: install.sh is valid POSIX sh
+        run: |
+          docker run --rm -v "$PWD:/mnt" koalaman/shellcheck:stable scripts/install.sh

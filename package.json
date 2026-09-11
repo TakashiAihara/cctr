@@ -1,0 +1,24 @@
+{
+  "name": "cctr-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "bun build apps/cli/src/index.ts --compile --outfile cctr",
+    "install:local": "bun run build && mkdir -p \"${CCTR_INSTALL_DIR:-$HOME/.local/bin}\" && install -m 755 cctr \"${CCTR_INSTALL_DIR:-$HOME/.local/bin}/cctr\" && echo \"installed to ${CCTR_INSTALL_DIR:-$HOME/.local/bin}/cctr\"",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint --ignore-pattern \"packages/proto/gen/**\" packages apps",
+    "fmt": "oxfmt packages apps",
+    "fmt:check": "oxfmt --check packages apps"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "oxfmt": "^0.47.0",
+    "oxlint": "^1.62.0",
+    "typescript": "^5"
+  }
+}

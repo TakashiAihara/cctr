@@ -1,0 +1,14 @@
+{
+  "name": "@cctr/cli",
+  "version": "0.1.0",
+  "bin": {
+    "cctr": "./src/index.ts"
+  },
+  "type": "module",
+  "dependencies": {
+    "@cctr/agent": "workspace:*",
+    "@cctr/core": "workspace:*",
+    "commander": "^14.0.0",
+    "hono": "^4.7.0"
+  }
+}
