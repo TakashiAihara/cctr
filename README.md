@@ -37,6 +37,7 @@ cctr outline <id> --format table         # one line per message: m0, m1, ...
 cctr read <id> m3..m7 --format table     # those messages, within --budget tokens (--no-budget for all)
 cctr path <id>                           # the cwd it ran in, for cd "$(cctr path latest)"
 cctr meta                                # what this cctr knows about itself
+cctr completion zsh                      # a completion script (bash, zsh, fish); `cctr completion --help` shows how to install it
 ```
 
 ### Search

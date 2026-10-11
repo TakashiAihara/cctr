@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
-import { Command } from "commander";
+import { Command, Option } from "commander";
 import { registerAgent } from "./commands/agent";
+import { registerCompletion } from "./commands/completion";
 import { registerMeta } from "./commands/meta";
 import { registerPath } from "./commands/path";
 import { registerRemote } from "./commands/remote";
@@ -14,7 +15,11 @@ const program = new Command("cctr")
   .description("Claude Code transcripts: search, read, measure, and visualize them, across machines")
   .version(VERSION)
   .option("--host <spec>", "local (default), a remote name, all, or a comma list")
-  .option("--format <fmt>", "json (default), table, id, or ndjson (search)", "json")
+  .addOption(
+    new Option("--format <fmt>", "json, table, id (a bare id), or ndjson (search)")
+      .choices(["json", "table", "id", "ndjson"])
+      .default("json"),
+  )
   .showHelpAfterError()
   .configureOutput({ writeErr: (s) => process.stderr.write(s) });
 
@@ -31,6 +36,7 @@ registerPath(program);
 registerMeta(program);
 registerAgent(program);
 registerRemote(program);
+registerCompletion(program);
 
 try {
   await program.parseAsync(process.argv);
