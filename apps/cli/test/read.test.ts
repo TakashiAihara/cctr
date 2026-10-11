@@ -83,13 +83,20 @@ describe("cctr outline", () => {
     expect(cut.at(-1)).toBe(`… (${6 - (cut.length - 1)} more messages; raise --budget or --no-budget)`);
     expect(cctr(["outline", A, "--budget", "0"]).code).toBe(2);
     expect(cctr(["outline", A, "--budget", "12abc"]).code).toBe(2);
+    expect(cctr(["outline", A, "--budget", "1e3"]).code).toBe(2);
   });
 });
 
 describe("cctr read", () => {
   test("json: tool output only with --tool-results; uuid carried", () => {
-    const plain = JSON.parse(cctr(["read", A, "m3"]).out) as { text: string; uuid: string }[];
-    expect(plain[0]!.text).toBe("");
+    const plain = JSON.parse(cctr(["read", A, "m3"]).out) as { text?: string; uuid: string }[];
+    expect("text" in plain[0]!).toBe(false);
+    const shown = JSON.parse(cctr(["show", A]).out) as { messages: { text?: string }[] };
+    expect("text" in shown.messages[3]!).toBe(false);
+    const shownFull = JSON.parse(cctr(["show", A, "--tool-results"]).out) as { messages: { text?: string }[] };
+    expect(shownFull.messages[3]!.text).toContain("a.ts");
+    // the read goes to the host:id that was resolved; a host-qualified id works the same
+    expect((JSON.parse(cctr(["read", `local:${A}`, "m0"]).out) as { uuid: string }[])[0]!.uuid).toBe("u1");
     expect(plain[0]!.uuid).toBe("u2");
     const full = JSON.parse(cctr(["read", A, "m3", "--tool-results"]).out) as { text: string }[];
     expect(full[0]!.text).toContain("a.ts");

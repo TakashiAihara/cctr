@@ -17,7 +17,7 @@ export function table(headers: string[], rows: string[][]): string {
   return [line(headers), line(w.map((n) => "-".repeat(n))), ...rows.map(line)].join("\n");
 }
 
-/** Counted in code points, so a cut never leaves half of an emoji. */
+/** Counted in code points, so a cut never splits a surrogate pair (a grapheme of several code points still can be). */
 export function trunc(s: string, n: number, side: "left" | "right" = "right"): string {
   const cps = Array.from(s);
   if (cps.length <= n) return s;

@@ -92,7 +92,7 @@ export function msgSummary(m: Msg, width = 90): string {
   const body =
     text ||
     (m.tools.length ? "⚙ " + m.tools.map((t) => t.name).join(", ") : m.isToolResult ? "(tool result)" : "(empty)");
-  // counted in code points, so the cut never leaves half of an emoji
+  // counted in code points, so the cut never splits a surrogate pair
   const cps = Array.from(body);
   return cps.length > width ? cps.slice(0, width - 1).join("") + "…" : body;
 }

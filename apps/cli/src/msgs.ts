@@ -11,8 +11,9 @@ export const DEFAULT_BUDGET = 6000;
 export function parseBudget(v: string | boolean | undefined): number {
   // commander hands over the string default or `false` for --no-budget, never `true`
   if (v === false) return Infinity;
-  const n = Number(v ?? DEFAULT_BUDGET);
-  if (!(Number.isInteger(n) && n > 0)) throw new CliError("--budget must be a positive integer", 2);
+  const s = String(v ?? DEFAULT_BUDGET);
+  const n = Number(s);
+  if (!/^\d+$/.test(s) || n <= 0) throw new CliError("--budget must be a positive integer", 2);
   return n;
 }
 
@@ -23,8 +24,9 @@ export function msgJson(m: Msg, opts: Parts) {
     role: m.role,
     ts: m.ts,
     uuid: m.uuid,
-    // tool output is most of a transcript's text, so like tools and thinking it is asked for
-    text: m.isToolResult && !opts.toolResults ? "" : m.text,
+    // tool output is most of a transcript's text, so like tools and thinking it is asked for;
+    // left out rather than emptied, so a hidden result is not mistaken for an empty one
+    ...(m.isToolResult && !opts.toolResults ? {} : { text: m.text }),
     isToolResult: m.isToolResult,
     ...(opts.thinking ? { thinking: m.thinking } : {}),
     ...(opts.tools ? { tools: m.tools } : {}),
