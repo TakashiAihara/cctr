@@ -17,9 +17,11 @@ export function table(headers: string[], rows: string[][]): string {
   return [line(headers), line(w.map((n) => "-".repeat(n))), ...rows.map(line)].join("\n");
 }
 
+/** Counted in code points, so a cut never leaves half of an emoji. */
 export function trunc(s: string, n: number, side: "left" | "right" = "right"): string {
-  if (s.length <= n) return s;
-  return side === "right" ? s.slice(0, n - 1) + "…" : "…" + s.slice(-(n - 1));
+  const cps = Array.from(s);
+  if (cps.length <= n) return s;
+  return side === "right" ? cps.slice(0, n - 1).join("") + "…" : "…" + cps.slice(-(n - 1)).join("");
 }
 
 export function fmtK(n: number): string {

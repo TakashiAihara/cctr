@@ -20,6 +20,7 @@ export function registerTranscript(program: Command): void {
     .command("show <id>")
     .description("one session: its metadata and the conversation (JSON by default; --format table to read it)")
     .option("--tools", "include tool calls")
+    .option("--tool-results", "include tool results (JSON; the table never shows them)")
     .option("--thinking", "include thinking blocks")
     .action(async (id: string, opts: Parts, cmd: Command) => {
       const g = cmd.optsWithGlobals() as Common;
@@ -58,7 +59,7 @@ export function registerTranscript(program: Command): void {
 
   program
     .command("read <id> [ranges...]")
-    .description("messages by range (m3, 3, m3..m7, 3..7; default all) within a token budget")
+    .description("messages by range (m3, 3, m3..m7, 3..7; default all), in transcript order, within a token budget")
     .option("--budget <n>", "approximate output tokens for --format table", String(DEFAULT_BUDGET))
     .option("--no-budget", "no output budget")
     .option("--tools", "include tool calls")
@@ -75,7 +76,7 @@ export function registerTranscript(program: Command): void {
       const budget = parseBudget(opts.budget);
       const { msgs } = await load(id, g);
       const picked = msgs.filter((m) => inAnyRange(m.index, ranges));
-      if (picked.length === 0) throw new CliError("no messages in the given range(s)", EXIT_NOT_FOUND);
+      if (picked.length === 0 && ranges.length) throw new CliError("no messages in the given range(s)", EXIT_NOT_FOUND);
       if (g.format !== "table") return json(picked.map((m) => msgJson(m, opts)));
       let spent = 0;
       for (const [i, m] of picked.entries()) {
@@ -95,7 +96,8 @@ async function load(id: string, g: Common): Promise<{ session: SessionMeta; msgs
   const src = resolveHosts(hostOf(g.host, id));
   const session = await src.getSession(id);
   if (!session) throw new CliError(`session not found: ${id}`, EXIT_NOT_FOUND);
-  return { session, msgs: await collectMessages(src.readSession(id)) };
+  // the host and id just resolved: `latest` or a prefix resolved again could name another session
+  return { session, msgs: await collectMessages(src.readSession(`${session.host}:${session.id}`)) };
 }
 
 function renderShow(s: SessionMeta, msgs: Msg[], opts: Parts): string {

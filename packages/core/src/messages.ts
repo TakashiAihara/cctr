@@ -92,7 +92,9 @@ export function msgSummary(m: Msg, width = 90): string {
   const body =
     text ||
     (m.tools.length ? "⚙ " + m.tools.map((t) => t.name).join(", ") : m.isToolResult ? "(tool result)" : "(empty)");
-  return body.length > width ? body.slice(0, width - 1) + "…" : body;
+  // counted in code points, so the cut never leaves half of an emoji
+  const cps = Array.from(body);
+  return cps.length > width ? cps.slice(0, width - 1).join("") + "…" : body;
 }
 
 /** `m3`, `3`, `m3..m7`, `3..7`: the `m` is optional per side, either case, and a reversed span is normalized. */
@@ -109,7 +111,14 @@ export function inAnyRange(n: number, ranges: { start: number; end: number }[]):
   return ranges.length === 0 || ranges.some((r) => n >= r.start && n <= r.end);
 }
 
-/** Four characters to a token is close enough to decide what fits in a budget. */
+/** Close enough to decide what fits in a budget; not a tokenizer. */
 export function approxTokens(s: string): number {
-  return Math.ceil(s.length / 4);
+  // about four ASCII chars to a token, but a CJK char is about a token on its own
+  let ascii = 0;
+  let other = 0;
+  for (const c of s) {
+    if (c <= "\x7f") ascii++;
+    else other++;
+  }
+  return Math.ceil(ascii / 4) + other;
 }

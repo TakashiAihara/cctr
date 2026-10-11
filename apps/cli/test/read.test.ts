@@ -80,12 +80,21 @@ describe("cctr outline", () => {
     expect(all[0]).toBe("m0\t▶ user\t2026-09-01 00:00\tlist the files");
     const cut = cctr(["--format", "table", "outline", A, "--budget", "20"]).out.trimEnd().split("\n");
     expect(cut.length).toBeLessThan(6);
-    expect(cut.at(-1)).toMatch(/^… \(\d+ more messages; raise --budget or --no-budget\)$/);
+    expect(cut.at(-1)).toBe(`… (${6 - (cut.length - 1)} more messages; raise --budget or --no-budget)`);
     expect(cctr(["outline", A, "--budget", "0"]).code).toBe(2);
+    expect(cctr(["outline", A, "--budget", "12abc"]).code).toBe(2);
   });
 });
 
 describe("cctr read", () => {
+  test("json: tool output only with --tool-results; uuid carried", () => {
+    const plain = JSON.parse(cctr(["read", A, "m3"]).out) as { text: string; uuid: string }[];
+    expect(plain[0]!.text).toBe("");
+    expect(plain[0]!.uuid).toBe("u2");
+    const full = JSON.parse(cctr(["read", A, "m3", "--tool-results"]).out) as { text: string }[];
+    expect(full[0]!.text).toContain("a.ts");
+  });
+
   test("json: ranges select messages", () => {
     const r = JSON.parse(cctr(["read", A, "m0", "m3..m4"]).out) as {
       index: string;
@@ -109,6 +118,8 @@ describe("cctr read", () => {
     const bad = cctr(["read", A, "junk"]);
     expect(bad.code).toBe(2);
     expect(bad.err).toMatch(/invalid range: junk/);
+    // checked before the session is looked up
+    expect(cctr(["read", "nope", "junk"]).code).toBe(2);
     expect(cctr(["read", A, "m99"]).code).toBe(3);
   });
 

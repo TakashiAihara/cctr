@@ -67,3 +67,54 @@ describe("parseRange", () => {
     expect(approxTokens("abcde")).toBe(2);
   });
 });
+
+describe("message shapes", () => {
+  const msgsOf = async (lines: object[]) => {
+    const recs = lines.map((l) => ({ ...(l as object), raw: l }) as import("../src").Record);
+    return collectMessages(
+      (async function* () {
+        yield* recs;
+      })(),
+    );
+  };
+
+  test("a structured tool result's text blocks, a user's text blocks, a record without a message", async () => {
+    const m = await msgsOf([
+      {
+        type: "user",
+        message: {
+          content: [
+            {
+              type: "tool_result",
+              content: [{ type: "text", text: "out1" }, { type: "image" }, { type: "text", text: "out2" }],
+            },
+          ],
+        },
+      },
+      {
+        type: "user",
+        message: { content: [{ type: "text", text: "look" }, { type: "image" }, { type: "text", text: "here" }] },
+      },
+      { type: "user" },
+      { type: "assistant" },
+    ]);
+    expect(m.map((x) => [x.isToolResult, x.text])).toEqual([
+      [true, "out1\nout2"],
+      [false, "look\nhere"],
+    ]);
+  });
+
+  test("a summary cut and the token estimate count code points", () => {
+    const base = {
+      index: 0,
+      role: "user" as const,
+      ts: null,
+      uuid: null,
+      thinking: [],
+      tools: [],
+      isToolResult: false,
+    };
+    expect(msgSummary({ ...base, text: "ab😀cd" }, 4)).toBe("ab😀…");
+    expect(approxTokens("日本語abcd")).toBe(4);
+  });
+});
