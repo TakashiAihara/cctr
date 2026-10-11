@@ -36,6 +36,19 @@ cctr path <id>                           # the cwd it ran in, for cd "$(cctr pat
 cctr meta                                # what this cctr knows about itself
 ```
 
+### Search
+
+Text of prompts and replies, newest session first. Exit 3 when nothing matches.
+
+```bash
+cctr search "kaneo task create"           # one JSON object per hit (case-insensitive substring)
+cctr search 'ne+dle' --regex --case       # a JavaScript regex, case-sensitive
+cctr search needle --tools --thinking     # also tool calls and thinking blocks
+cctr search needle --group --hits-per 3   # one entry per session with its first hits
+cctr search needle -l --format id         # just host:id of the sessions that matched
+cctr --host all search needle             # every registered machine (a remote runs the search itself)
+```
+
 ### Other machines
 
 Register a machine once, then read it like the local one. Two ways to reach it:

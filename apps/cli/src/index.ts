@@ -4,6 +4,7 @@ import { registerAgent } from "./commands/agent";
 import { registerMeta } from "./commands/meta";
 import { registerPath } from "./commands/path";
 import { registerRemote } from "./commands/remote";
+import { registerSearch } from "./commands/search";
 import { registerSessions } from "./commands/sessions";
 import { CliError, log } from "./output";
 import { VERSION } from "./version";
@@ -12,7 +13,7 @@ const program = new Command("cctr")
   .description("Claude Code transcripts: search, read, measure, and visualize them, across machines")
   .version(VERSION)
   .option("--host <spec>", "local (default), a remote name, all, or a comma list")
-  .option("--format <fmt>", "json (default), table, or id", "json")
+  .option("--format <fmt>", "json (default), table, id, or ndjson (search)", "json")
   .showHelpAfterError()
   .configureOutput({ writeErr: (s) => process.stderr.write(s) });
 
@@ -23,6 +24,7 @@ program.exitOverride((err) => {
 });
 
 registerSessions(program);
+registerSearch(program);
 registerPath(program);
 registerMeta(program);
 registerAgent(program);

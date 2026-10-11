@@ -1,14 +1,15 @@
 import { AmbiguousIdError } from "./discover";
 import { isSid } from "./sid";
 import { SID_SCHEMA, type Source } from "./source";
-import type { Record, SessionFilter, SessionMeta } from "./types";
+import type { Record, SearchQuery, SessionFilter, SessionHits, SessionMeta } from "./types";
 
 export type HostError = { host: string; error: string };
 
 /**
  * Several Sources asked together. One host being down is reported, not fatal:
  * listSessions returns what the others had plus `errors`; getSession and
- * readSession skip the failed host and raise only when nobody had the session.
+ * readSession skip the failed host and raise only when nobody had the session;
+ * search collects each host's hits the way listSessions collects sessions.
  */
 export class MultiSource {
   constructor(readonly sources: Source[]) {}
@@ -23,6 +24,26 @@ export class MultiSource {
     });
     sessions.sort((a, b) => (b.lastTs ?? "").localeCompare(a.lastTs ?? ""));
     return { sessions: filter.limit ? sessions.slice(0, filter.limit) : sessions, errors };
+  }
+
+  /**
+   * Each source applies `limit` to itself; the merged list is cut to `limit` again
+   * so the result stays the newest `limit` sessions across the whole fleet. A
+   * `host:` on the session pins one host, like getSession.
+   */
+  async search(q: SearchQuery): Promise<{ results: SessionHits[]; errors: HostError[] }> {
+    const { id: bare } = splitHost(q.session ?? "");
+    const sources = this.pick(q.session ?? "");
+    const sub = q.session ? { ...q, session: bare } : q;
+    const results = await Promise.allSettled(sources.map((s) => collect(s.search(sub))));
+    const hits: SessionHits[] = [];
+    const errors: HostError[] = [];
+    results.forEach((r, i) => {
+      if (r.status === "fulfilled") hits.push(...r.value);
+      else errors.push({ host: sources[i]!.host, error: errMsg(r.reason, sources[i]!.host) });
+    });
+    hits.sort((a, b) => (b.session.lastTs ?? "").localeCompare(a.session.lastTs ?? ""));
+    return { results: q.limit ? hits.slice(0, q.limit) : hits, errors };
   }
 
   /**
@@ -145,4 +166,11 @@ async function locateSid(
 function errMsg(e: unknown, host: string): string {
   const m = e instanceof Error ? e.message : String(e);
   return m.startsWith(`${host}: `) ? m.slice(host.length + 2) : m;
+}
+
+/** Drain a stream of session hits; a source that throws mid-stream rejects here, as one that throws up front does. */
+async function collect(gen: AsyncGenerator<SessionHits>): Promise<SessionHits[]> {
+  const out: SessionHits[] = [];
+  for await (const s of gen) out.push(s);
+  return out;
 }

@@ -66,6 +66,48 @@ export type SessionFilter = {
   limit?: number;
 };
 
+export type SearchQuery = {
+  query: string;
+  /** The query is a JavaScript RegExp source rather than a substring. */
+  regex?: boolean;
+  /** Default: case-insensitive (substring compares lowercased; a regex gets flag "i"). */
+  caseSensitive?: boolean;
+  /** Whose words to look at; undefined is both sides. */
+  role?: "user" | "assistant";
+  /** Also search assistant `thinking` blocks. */
+  thinking?: boolean;
+  /** Also search assistant `tool_use` blocks. */
+  tools?: boolean;
+  /** Chars kept either side of the match in an excerpt. */
+  context?: number;
+  /** Hits kept per session; `total` still counts every matching block. */
+  hitsPerSession?: number;
+  /** Sessions returned; undefined is all of them. */
+  limit?: number;
+  /** One session: an id, a unique prefix, `latest`, or `host:id` at MultiSource level. */
+  session?: string;
+  /** Exact cwd, like SessionFilter. */
+  cwd?: string;
+  /** ISO time, like SessionFilter.since. */
+  since?: string;
+};
+
+/** One matching block of one record, with the text around it. */
+export type SearchHit = {
+  uuid: string | null;
+  ts: string | null;
+  role: "user" | "assistant";
+  kind: "text" | "thinking" | "tool_use";
+  excerpt: string;
+};
+
+export type SessionHits = {
+  session: SessionMeta;
+  /** Matching blocks in the session, whether or not `hits` kept them all. */
+  total: number;
+  hits: SearchHit[];
+};
+
 export function emptyUsage(): Usage {
   return { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
 }

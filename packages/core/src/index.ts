@@ -2,6 +2,7 @@ export * from "./types";
 export * from "./sid";
 export * from "./discover";
 export * from "./records";
+export * from "./search";
 export * from "./session";
 export * from "./source";
 export * from "./remote/http";

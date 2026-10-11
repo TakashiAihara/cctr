@@ -2,12 +2,14 @@ import { create } from "@bufbuild/protobuf";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { Code, ConnectError, type ServiceImpl, createConnectRouter } from "@connectrpc/connect";
 import { createFetchHandler } from "@connectrpc/connect/protocol";
-import { type Source, toWire } from "@cctr/core";
+import { InvalidRegexError, type SearchQuery, type Source, toWire } from "@cctr/core";
 import {
   GetMetaResponseSchema,
   GetSessionResponseSchema,
   ListSessionsResponseSchema,
   ReadRecordsResponseSchema,
+  SearchHitSchema,
+  SearchResponseSchema,
   TranscriptService,
 } from "@cctr/proto/cctr/v1/transcripts_pb";
 import { Hono } from "hono";
@@ -91,6 +93,45 @@ export function transcriptImpl(source: Source): ServiceImpl<typeof TranscriptSer
       if (!(await source.getSession(req.id))) throw new ConnectError(`session not found: ${req.id}`, Code.NotFound);
       for await (const r of source.readSession(req.id)) {
         yield create(ReadRecordsResponseSchema, { line: JSON.stringify(r.raw) });
+      }
+    },
+
+    async *search(req) {
+      const q: SearchQuery = {
+        query: req.query,
+        regex: req.regex,
+        caseSensitive: req.caseSensitive,
+        role: req.role === "user" || req.role === "assistant" ? req.role : undefined,
+        thinking: req.thinking,
+        tools: req.tools,
+        // 0 is not a context of zero chars but the absence of one
+        context: req.context || undefined,
+        hitsPerSession: req.hitsPerSession || undefined,
+        limit: req.limit || undefined,
+        session: req.session || undefined,
+        cwd: req.cwd || undefined,
+        since: req.since ? timestampDate(req.since).toISOString() : undefined,
+      };
+      try {
+        for await (const s of source.search(q)) {
+          yield create(SearchResponseSchema, {
+            session: toWire(s.session),
+            total: BigInt(s.total),
+            hits: s.hits.map((h) =>
+              create(SearchHitSchema, {
+                uuid: h.uuid ?? "",
+                ts: h.ts ?? "",
+                role: h.role,
+                kind: h.kind,
+                excerpt: h.excerpt,
+              }),
+            ),
+          });
+        }
+      } catch (e) {
+        // the query is the caller's, so a regex that will not compile is theirs to fix
+        if (e instanceof InvalidRegexError) throw new ConnectError(e.message, Code.InvalidArgument);
+        throw e;
       }
     },
   };

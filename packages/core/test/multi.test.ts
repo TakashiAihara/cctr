@@ -82,6 +82,9 @@ function fake(host: string, sessions: SessionMeta[], fail?: string): Source {
       const s = sessions.find((s) => s.id === id);
       if (s) yield { type: "user", raw: { type: "user", from: host }, sessionId: s.id };
     },
+    async *search() {
+      if (fail) boom();
+    },
   };
 }
 

@@ -39,7 +39,7 @@ export function toWire(m: SessionMeta): Session {
 }
 
 /** SessionMeta holds numbers; a uint64 beyond 2^53 would be silently rounded, so it is refused instead. */
-function num(v: bigint, field: string): number {
+export function num(v: bigint, field: string): number {
   if (v > BigInt(Number.MAX_SAFE_INTEGER)) throw new RangeError(`${field} ${v} exceeds Number.MAX_SAFE_INTEGER`);
   return Number(v);
 }

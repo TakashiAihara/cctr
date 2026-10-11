@@ -3,7 +3,7 @@ import { Readable } from "node:stream";
 import { parseLine } from "../records";
 import { sidOf } from "../sid";
 import type { Source, SourceMeta } from "../source";
-import type { Record, SessionFilter, SessionMeta } from "../types";
+import type { Record, SearchQuery, SessionFilter, SessionHits, SessionMeta } from "../types";
 import { lines } from "./http";
 
 export type SshSourceOptions = {
@@ -55,7 +55,40 @@ export class SshSource implements Source {
   }
 
   async *readSession(idOrLatest: string): AsyncGenerator<Record> {
-    const child = this.spawn(["sessions", "records", idOrLatest]);
+    for await (const line of this.stream(["sessions", "records", idOrLatest])) {
+      const r = parseLine(line);
+      if (r) yield r;
+    }
+  }
+
+  async *search(q: SearchQuery): AsyncGenerator<SessionHits> {
+    // global options before the subcommand, so the remote's own cctr reads them
+    const args = ["--host", "local", "--format", "ndjson", "search", q.query];
+    if (q.regex) args.push("--regex");
+    if (q.caseSensitive) args.push("--case");
+    if (q.role) args.push("--role", q.role);
+    if (q.thinking) args.push("--thinking");
+    if (q.tools) args.push("--tools");
+    if (q.context) args.push("--context", String(q.context));
+    if (q.hitsPerSession) args.push("--hits-per", String(q.hitsPerSession));
+    if (q.limit) args.push("--limit", String(q.limit));
+    if (q.session) args.push("--session", q.session);
+    if (q.cwd) args.push("--cwd", q.cwd);
+    if (q.since) args.push("--since", q.since);
+    for await (const line of this.stream(args)) {
+      const hits = JSON.parse(line) as SessionHits;
+      // the remote answers as `local`; the caller knows the name it reached it by
+      yield { ...hits, session: { ...hits.session, host: this.host } };
+    }
+  }
+
+  /**
+   * One remote command whose stdout is NDJSON, line by line. An exit of 3 is the
+   * remote's "nothing found", which for a stream means an empty result, not a
+   * failure; anything else non-zero carries the child's stderr.
+   */
+  private async *stream(args: string[]): AsyncGenerator<string> {
+    const child = this.spawn(args);
     const stderr = collect(child.stderr!).catch(() => "");
     // listen for exit (and the `error` a missing ssh binary raises) before reading stdout:
     // an `error` with nobody listening would crash the process instead of rejecting here
@@ -63,10 +96,7 @@ export class SshSource implements Source {
     let drained = false;
     try {
       try {
-        for await (const line of lines(toWeb(child.stdout!))) {
-          const r = parseLine(line);
-          if (r) yield r;
-        }
+        yield* lines(toWeb(child.stdout!));
       } catch (streamErr) {
         // the stream aborts when the child could not start; the spawn error says why, the abort does not
         const outcome = await exit;

@@ -7,9 +7,11 @@ import type { Record } from "./types";
  * in memory. Lines that are not valid JSON are skipped: the last line of a
  * session that is still being written is usually one of those.
  */
-export async function* readRecords(file: string): AsyncGenerator<Record> {
+export async function* readRecords(file: string, keep?: (line: string) => boolean): AsyncGenerator<Record> {
   const rl = createInterface({ input: createReadStream(file, { encoding: "utf8" }), crlfDelay: Infinity });
   for await (const line of rl) {
+    // parsing is most of the cost; a line the caller can rule out from its raw text is never parsed
+    if (keep && !keep(line)) continue;
     const rec = parseLine(line);
     if (rec) yield rec;
   }
