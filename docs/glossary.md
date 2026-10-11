@@ -21,7 +21,7 @@ One word, one meaning. Each entry says where the thing exists so the definition 
 - remote: a registered machine, HTTP or SSH. Stored in `~/.config/cctr/remotes.json`
 - token: the per-machine bearer secret the agent requires. `~/.local/state/cctr/token`
 - machine id: what identifies a machine across the fleet. hostname unless `CCX_MACHINE` is set
-- sid: a session's 6-character short name, `base32(sha1(session id))[:6]`. `sidOf` in `packages/core/src/sid.ts`, `sid` on `SessionMeta`; computed on the receiving side, never sent on the wire. Accepted wherever a session id is
+- sid: a session's 6-character short name, `base32(sha1(session id))[:6]`. `sidOf` in `packages/core/src/sid.ts`, `sid` on `SessionMeta`; not in the proto contract; every receiver recomputes it from the id, so a remote's own value is never trusted. Accepted wherever a session id is
 - schema version: `SCHEMA_VERSION` in `packages/core/src/source.ts`; bumped when `SessionMeta` or the record shape changes incompatibly
 - contract: `TranscriptService` in `packages/proto/cctr/v1/transcripts.proto`; what the agent serves and `HttpSource` consumes. Generated code under `packages/proto/gen/ts` is committed
 - action provider: the slot for "do something with this session" (resume, send). Phase 9; none ships with cctr

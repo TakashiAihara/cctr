@@ -37,3 +37,24 @@ describe("sid on records and lookup", () => {
     expect(toMeta(toWire(m), "h").sid).toBe("EOMGKY");
   });
 });
+
+describe("sid collisions", () => {
+  const { AmbiguousIdError } = require("../src") as typeof import("../src");
+  const f = (id: string) => ({ file: `/p/${id}.jsonl`, mtimeMs: 0, sizeBytes: 0 });
+
+  test("an all-digit sid that is also an id prefix is ambiguous, not the prefix's session", () => {
+    const owner = "00006ad2-0000-4000-8000-000000000001";
+    expect(sidOf(owner)).toBe("226633");
+    expect(resolveSessionFile("226633", [f(owner)])!.file).toBe(`/p/${owner}.jsonl`);
+    expect(() => resolveSessionFile("226633", [f("22663300-0000-4000-8000-000000000009"), f(owner)])).toThrow(
+      AmbiguousIdError,
+    );
+  });
+
+  test("two ids hashing to one sid are refused, not guessed", () => {
+    const a = "00000320-0000-4000-8000-000000000000";
+    const b = "00003fab-0000-4000-8000-000000000000";
+    expect([sidOf(a), sidOf(b)]).toEqual(["MGHMVI", "MGHMVI"]);
+    expect(() => resolveSessionFile("MGHMVI", [f(a), f(b)])).toThrow(AmbiguousIdError);
+  });
+});

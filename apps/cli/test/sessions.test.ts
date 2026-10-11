@@ -56,6 +56,25 @@ describe("--fields", () => {
     const rows = JSON.parse(r.out) as object[];
     expect(rows).toHaveLength(2);
     for (const row of rows) expect(Object.keys(row)).toEqual(["sid", "id", "cwd"]);
+    const a = rows.find((r) => (r as { id: string }).id === A);
+    expect(a).toEqual({ sid: "EOMGKY", id: A, cwd: "/home/u/proj-a" });
+  });
+
+  test("an empty or repeated field list is a usage error", () => {
+    expect(cctr(["sessions", "list", "--fields", ","]).code).toBe(2);
+    const dup = cctr(["sessions", "list", "--fields", "id,id"]);
+    expect(dup.code).toBe(2);
+    expect(dup.err).toMatch(/duplicate field: id/);
+  });
+
+  test("latest --format table prints the named columns", () => {
+    const r = cctr(["--format", "table", "sessions", "latest", "--fields", "sid,cwd"]);
+    expect(r.code).toBe(0);
+    // which fixture is latest depends on checkout mtimes, so either row is right
+    const lines = r.out.trimEnd().split("\n");
+    expect(lines.slice(0, 2)).toEqual(["sid     cwd", "------  --------------"]);
+    expect(["EOMGKY  /home/u/proj-a", "OZIFHC  /home/u/proj-b"]).toContain(lines[2]!);
+    expect(lines).toHaveLength(3);
   });
 
   test("latest honors it too", () => {

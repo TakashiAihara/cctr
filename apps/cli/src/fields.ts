@@ -40,9 +40,11 @@ export function parseFields(spec: string | undefined): Field[] | undefined {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
-  for (const name of names) {
+  if (names.length === 0) throw new CliError("--fields needs at least one field", 2);
+  for (const [i, name] of names.entries()) {
     if (!(META_FIELDS as readonly string[]).includes(name))
       throw new CliError(`unknown field: ${name} (known: ${META_FIELDS.join(", ")})`, 2);
+    if (names.indexOf(name) !== i) throw new CliError(`duplicate field: ${name}`, 2);
   }
   return names as Field[];
 }

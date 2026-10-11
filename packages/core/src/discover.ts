@@ -41,11 +41,12 @@ export function resolveSessionFile(idOrLatest: string, files = listSessionFiles(
   if (idOrLatest === "latest") return files[0] ?? null;
   const exact = files.find((f) => basename(f.file, ".jsonl") === idOrLatest);
   if (exact) return exact;
-  const prefixed = files.filter((f) => basename(f.file, ".jsonl").startsWith(idOrLatest));
-  if (prefixed.length) return only(idOrLatest, prefixed);
-  if (!isSid(idOrLatest)) return null;
-  const hashed = files.filter((f) => sidOf(basename(f.file, ".jsonl")) === idOrLatest);
-  return hashed.length ? only(idOrLatest, hashed) : null;
+  // an all-digit sid is also a valid id prefix, so a sid-shaped name is looked up both ways
+  const matches = files.filter((f) => {
+    const id = basename(f.file, ".jsonl");
+    return id.startsWith(idOrLatest) || (isSid(idOrLatest) && sidOf(id) === idOrLatest);
+  });
+  return matches.length ? only(idOrLatest, matches) : null;
 }
 
 function only(idOrLatest: string, matches: FileEntry[]): FileEntry {

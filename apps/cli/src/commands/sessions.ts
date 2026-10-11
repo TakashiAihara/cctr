@@ -51,6 +51,7 @@ export function registerSessions(program: Command): void {
       // every host failing is a transport error (exit 1), not "no sessions" (exit 3)
       if (!m && errors.length) throw new CliError("no host answered", 1);
       if (!m) throw new CliError("no sessions found", EXIT_NOT_FOUND);
+      if (g.format === "table" && fields) return console.log(table(fields, [fields.map((f) => cell(m, f))]));
       if (g.format === "table" || g.format === "id")
         return console.log(m.host === "local" ? m.id : `${m.host}:${m.id}`);
       json(fields ? pick(m, fields) : m);
@@ -86,7 +87,11 @@ export function registerSessions(program: Command): void {
 /** A sid is a name people read out loud, so a miss on one says which hosts were asked. */
 function notFound(src: MultiSource, id: string): CliError {
   const { id: bare } = splitHost(id);
-  if (isSid(bare)) return new CliError(`no session hashes to sid ${bare} on: ${hosts(src)}`, EXIT_NOT_FOUND);
+  if (isSid(bare))
+    return new CliError(
+      `no session hashes to sid ${bare} on: ${hosts(src)} (a remote whose cctr predates sids cannot match one)`,
+      EXIT_NOT_FOUND,
+    );
   return new CliError(`session not found: ${id}`, EXIT_NOT_FOUND);
 }
 
