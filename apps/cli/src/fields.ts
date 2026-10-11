@@ -60,5 +60,13 @@ export function cell(m: SessionMeta, f: Field): string {
   // undefined too: a remote's JSON may simply leave a field out
   if (v === null || v === undefined) return "-";
   if (typeof v === "object") return JSON.stringify(v);
-  return String(v).replace(/[\r\n\t]+/g, " ");
+  return oneLine(String(v));
+}
+
+/** C0 controls, DEL, and the two Unicode line separators: any of them would split a row or drive the terminal. */
+const CONTROL = new RegExp(`[\\x00-\\x1f\\x7f${String.fromCharCode(0x2028, 0x2029)}]+`, "g");
+
+/** Each run of control chars becomes one space. */
+export function oneLine(s: string): string {
+  return s.replace(CONTROL, " ");
 }

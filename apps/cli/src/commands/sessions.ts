@@ -1,6 +1,6 @@
 import type { Command } from "commander";
 import { isSid, type MultiSource, type SessionMeta, splitHost } from "@cctr/core";
-import { cell, parseFields, pick } from "../fields";
+import { cell, oneLine, parseFields, pick } from "../fields";
 import { hostOf, resolveHosts } from "../hosts";
 import { CliError, EXIT_NOT_FOUND, fmtK, json, log, table, trunc } from "../output";
 
@@ -103,9 +103,9 @@ function row(m: SessionMeta): string[] {
     m.host,
     m.id,
     m.lastTs?.replace("T", " ").slice(0, 16) ?? "-",
-    trunc(m.cwd ?? "-", 28, "left"),
+    trunc(oneLine(m.cwd ?? "-"), 28, "left"),
     String(m.userTurns),
     fmtK(m.usage.output),
-    trunc(m.title ?? m.lastPrompt ?? "-", 44),
+    trunc(oneLine(m.title ?? m.lastPrompt ?? "-"), 44),
   ];
 }

@@ -112,10 +112,12 @@ async function locateSid(
   results: PromiseSettledResult<SessionMeta | null>[],
 ): Promise<{ source: Source | null; meta: SessionMeta | null }> {
   const errors: HostError[] = [];
-  let hits: { source: Source; meta: SessionMeta }[] = [];
+  const hits: { source: Source; meta: SessionMeta }[] = [];
   const answered: Source[] = [];
   results.forEach((r, i) => {
     const source = sources[i]!;
+    // a host that found the sid twice is a refusal, not an unreachable host
+    if (r.status === "rejected" && r.reason instanceof AmbiguousIdError) throw r.reason;
     if (r.status === "rejected") errors.push({ host: source.host, error: errMsg(r.reason, source.host) });
     else if (r.value) hits.push({ source, meta: r.value });
     else answered.push(source);
@@ -128,7 +130,7 @@ async function locateSid(
     if (r.status === "rejected") errors.push({ host: source.host, error: errMsg(r.reason, source.host) });
     else hits.push(...r.value.filter((m) => m.sid === sid).map((meta) => ({ source, meta })));
   });
-  hits = hits.filter((h, i) => hits.findIndex((o) => o.source === h.source && o.meta.id === h.meta.id) === i);
+
   if (hits.length > 1)
     throw new AmbiguousIdError(
       sid,

@@ -343,3 +343,15 @@ describe("sid across hosts", () => {
     await expect(new MultiSource([fresh, old]).getSession("MGHMVI")).rejects.toThrow(/new:00000320.*old:00003fab/);
   });
 });
+
+describe("sid ambiguity on one host", () => {
+  test("a host that finds the sid twice refuses, even when another host has a hit", async () => {
+    const { AmbiguousIdError } = require("../src") as typeof import("../src");
+    const twice = fake("twice", []);
+    twice.getSession = async () => {
+      throw new AmbiguousIdError("MGHMVI", ["a", "b"]);
+    };
+    const other = fake("other", [meta("00003fab-0000-4000-8000-000000000000", "other", "2026-09-02T00:00:00Z")]);
+    await expect(new MultiSource([twice, other]).getSession("MGHMVI")).rejects.toThrow(AmbiguousIdError);
+  });
+});

@@ -107,7 +107,7 @@ describe("--fields", () => {
         "\n" +
         JSON.stringify({
           type: "last-prompt",
-          lastPrompt: "a last prompt that is well over forty-four characters long,\nkept whole",
+          lastPrompt: "a last prompt that is well over forty-four characters long,\r\n\tkept\x1b[31m whole",
         }) +
         "\n",
     );
@@ -116,9 +116,11 @@ describe("--fields", () => {
     const lines = r.out.trimEnd().split("\n");
     expect(lines[0]).toMatch(/^cwd\s+lastPrompt$/);
     expect(lines[2]).toContain(longCwd);
-    expect(lines[2]).toContain("kept whole");
-    // a line break inside a cell must not start a new row
+    expect(lines[2]).toContain("long, kept [31m whole");
+    // a line break inside a cell must not start a new row, nor an escape drive the terminal
     expect(lines).toHaveLength(3);
+    expect(r.out).not.toContain("\x1b");
+
     expect(r.out).not.toContain("…");
   });
 });
@@ -143,5 +145,29 @@ describe("SshSource and sid", () => {
     const [m] = await src.listSessions();
     expect(m!.sid).toBe("EOMGKY");
     expect(m!.host).toBe("box");
+  });
+});
+
+describe("default table", () => {
+  test("a multi-line last prompt stays on its row", () => {
+    const dir = join(tmp, "short", "-p");
+    mkdirSync(dir, { recursive: true });
+    const id = "dddddddd-0000-4000-8000-000000000004";
+    writeFileSync(
+      join(dir, `${id}.jsonl`),
+      JSON.stringify({
+        type: "user",
+        cwd: "/x",
+        timestamp: "2026-01-01T00:00:00Z",
+        message: { role: "user", content: "hi" },
+      }) +
+        "\n" +
+        JSON.stringify({ type: "last-prompt", lastPrompt: "one\ntwo" }) +
+        "\n",
+    );
+    const r = cctr(["--format", "table", "sessions", "list"], join(tmp, "short"));
+    const lines = r.out.trimEnd().split("\n");
+    expect(lines).toHaveLength(3);
+    expect(lines[2]).toContain("one two");
   });
 });
