@@ -316,6 +316,7 @@ describe("sid across hosts", () => {
     const hashing = (host: string, id: string) => {
       const f = fake(host, [meta(id, host, "2026-09-01T00:00:00Z")]);
       const all = f.listSessions.bind(f);
+      f.meta = async () => ({ name: "cctr", version: "0", schemaVersion: 2, host, projectsDir: "/x" });
       f.getSession = async (q) => (await all()).find((s) => s.sid === q) ?? null;
       f.listSessions = async () => {
         throw new Error("listed although the host answered");
@@ -327,5 +328,18 @@ describe("sid across hosts", () => {
       hashing("two", "00003fab-0000-4000-8000-000000000000"),
     ]);
     await expect(m.getSession("MGHMVI")).rejects.toThrow(/one:00000320.*two:00003fab/);
+    // a host that resolves sids itself and has none is not listed again
+    expect(
+      await new MultiSource([hashing("one", "00000320-0000-4000-8000-000000000000")]).getSession("ZZZZZZ"),
+    ).toBeNull();
+  });
+
+  test("a new host's hit does not hide a collision on an old host", async () => {
+    const fresh = fake("new", [meta("00000320-0000-4000-8000-000000000000", "new", "2026-09-01T00:00:00Z")]);
+    const all = fresh.listSessions.bind(fresh);
+    fresh.meta = async () => ({ name: "cctr", version: "0", schemaVersion: 2, host: "new", projectsDir: "/x" });
+    fresh.getSession = async (q) => (await all()).find((s) => s.sid === q) ?? null;
+    const old = fake("old", [meta("00003fab-0000-4000-8000-000000000000", "old", "2026-09-02T00:00:00Z")]);
+    await expect(new MultiSource([fresh, old]).getSession("MGHMVI")).rejects.toThrow(/new:00000320.*old:00003fab/);
   });
 });

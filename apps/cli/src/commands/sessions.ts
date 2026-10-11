@@ -74,8 +74,10 @@ export function registerSessions(program: Command): void {
     .action(async (id: string, _opts: unknown, cmd: Command) => {
       const g = cmd.optsWithGlobals() as Common;
       const src = resolveHosts(hostOf(g.host, id));
-      if (!(await src.getSession(id))) throw notFound(src, id);
-      for await (const r of src.readSession(id)) {
+      const m = await src.getSession(id);
+      if (!m) throw notFound(src, id);
+      // the resolved host and full id, so the read does not resolve a prefix or sid a second time
+      for await (const r of src.readSession(`${m.host}:${m.id}`)) {
         // a slow pipe must not make the process buffer the whole transcript
         if (!process.stdout.write(JSON.stringify(r.raw) + "\n")) {
           await new Promise((res) => process.stdout.once("drain", res));

@@ -1,6 +1,6 @@
 import { AmbiguousIdError } from "./discover";
 import { isSid } from "./sid";
-import type { Source } from "./source";
+import { SID_SCHEMA, type Source } from "./source";
 import type { Record, SessionFilter, SessionMeta } from "./types";
 
 export type HostError = { host: string; error: string };
@@ -103,7 +103,8 @@ export function splitHost(id: string): { host: string | null; id: string } {
 /**
  * A sid is a hash, so unlike a prefix it can name sessions on two hosts at once;
  * every host is checked and two hits are refused. A host that answered "not found"
- * may be a cctr that predates sids, so its listing is hashed here before giving up.
+ * and reports a schema older than sids is listed and hashed here, whether or not
+ * another host already had a hit, so a collision with it is still seen.
  */
 async function locateSid(
   sid: string,
@@ -119,14 +120,14 @@ async function locateSid(
     else if (r.value) hits.push({ source, meta: r.value });
     else answered.push(source);
   });
-  if (hits.length === 0) {
-    const listed = await Promise.allSettled(answered.map((s) => s.listSessions()));
-    listed.forEach((r, i) => {
-      const source = answered[i]!;
-      if (r.status === "rejected") errors.push({ host: source.host, error: errMsg(r.reason, source.host) });
-      else hits.push(...r.value.filter((m) => m.sid === sid).map((meta) => ({ source, meta })));
-    });
-  }
+  const listed = await Promise.allSettled(
+    answered.map(async (s) => ((await s.meta()).schemaVersion < SID_SCHEMA ? s.listSessions() : [])),
+  );
+  listed.forEach((r, i) => {
+    const source = answered[i]!;
+    if (r.status === "rejected") errors.push({ host: source.host, error: errMsg(r.reason, source.host) });
+    else hits.push(...r.value.filter((m) => m.sid === sid).map((meta) => ({ source, meta })));
+  });
   hits = hits.filter((h, i) => hits.findIndex((o) => o.source === h.source && o.meta.id === h.meta.id) === i);
   if (hits.length > 1)
     throw new AmbiguousIdError(

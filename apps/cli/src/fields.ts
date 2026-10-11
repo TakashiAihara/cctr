@@ -57,7 +57,8 @@ export function pick(m: SessionMeta, fields: readonly Field[]): globalThis.Recor
 /** A table cell. A value the session never recorded is a dash; nothing is cut short, but a line break would split the row. */
 export function cell(m: SessionMeta, f: Field): string {
   const v = m[f];
-  if (v === null) return "-";
+  // undefined too: a remote's JSON may simply leave a field out
+  if (v === null || v === undefined) return "-";
   if (typeof v === "object") return JSON.stringify(v);
   return String(v).replace(/[\r\n\t]+/g, " ");
 }

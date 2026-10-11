@@ -132,7 +132,11 @@ describe("SshSource and sid", () => {
     const ssh = join(bin, "fake-ssh");
     writeFileSync(ssh, '#!/bin/sh\nfor a; do last="$a"; done\nexec sh -c "$last"\n');
     const old = join(bin, "old-cctr");
-    writeFileSync(old, `#!/bin/sh\necho '[{"id":"${A}","host":"local"}]'\n`);
+    // like the real CLI, this old remote lists only a default few unless --limit says otherwise
+    writeFileSync(
+      old,
+      `#!/bin/sh\ncase "$*" in *--limit*) echo '[{"id":"${A}","host":"local"}]';; *) echo '[]';; esac\n`,
+    );
     chmodSync(ssh, 0o755);
     chmodSync(old, 0o755);
     const src = new SshSource({ host: "box", target: "u@box", sshCommand: ssh, command: old });

@@ -42,7 +42,8 @@ export class SshSource implements Source {
     const args = ["sessions", "list"];
     if (filter.cwd) args.push("--cwd", filter.cwd);
     if (filter.since) args.push("--since", filter.since);
-    if (filter.limit) args.push("--limit", String(filter.limit));
+    // no limit means every session, but the remote CLI has a default of its own
+    args.push("--limit", String(filter.limit || Number.MAX_SAFE_INTEGER));
     const metas = JSON.parse(await this.run(args)) as SessionMeta[];
     return metas.map((m) => this.adopt(m));
   }
