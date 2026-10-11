@@ -21,6 +21,11 @@ service TranscriptService {
   // The records of one session as they are on disk, one JSONL line each.
   // Streamed: sessions of tens of megabytes exist.
   rpc ReadRecords(ReadRecordsRequest) returns (stream ReadRecordsResponse);
+
+  // One count over this machine's records (Bash commands, edited files, slash
+  // commands, skills, records per UTC hour), so a caller sums hosts instead of
+  // reading every transcript itself.
+  rpc Count(CountRequest) returns (CountResponse);
 }
 
 message GetMetaRequest {}
@@ -102,4 +107,24 @@ message ReadRecordsRequest {
 // parser as a local file.
 message ReadRecordsResponse {
   string line = 1;
+}
+
+message CountRequest {
+  // "bash", "bash-full", "files", "slash", "skill" or "hour"; anything else is InvalidArgument.
+  string kind = 1;
+  // Only sessions whose cwd is exactly this path.
+  string cwd = 2;
+  // Only sessions with a record at or after this time.
+  google.protobuf.Timestamp since = 3;
+}
+
+message CountResponse {
+  // Sessions that passed the filters.
+  uint64 sessions = 1;
+  // Records carrying a timestamp.
+  uint64 records = 2;
+  // Each session's first-to-last span, summed.
+  uint64 active_ms = 3;
+  // key -> how many times it was seen; what a key is depends on the kind.
+  map<string, uint64> counts = 4;
 }

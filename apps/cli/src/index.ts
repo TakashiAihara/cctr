@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { Command } from "commander";
 import { registerAgent } from "./commands/agent";
+import { registerAggregates } from "./commands/aggregate";
 import { registerMeta } from "./commands/meta";
 import { registerPath } from "./commands/path";
 import { registerRemote } from "./commands/remote";
@@ -23,6 +24,7 @@ program.exitOverride((err) => {
 });
 
 registerSessions(program);
+registerAggregates(program);
 registerPath(program);
 registerMeta(program);
 registerAgent(program);

@@ -1,8 +1,16 @@
 import { hostname } from "node:os";
 import { listSessionFiles, projectsDir, resolveSessionFile } from "./discover";
+import { UnknownCountKindError, countKeys, isCountKind } from "./count";
 import { readRecords } from "./records";
 import { parseSession } from "./session";
-import type { Record, SessionFilter, SessionMeta } from "./types";
+import {
+  type CountQuery,
+  type CountResult,
+  type Record,
+  type SessionFilter,
+  type SessionMeta,
+  emptyCount,
+} from "./types";
 
 /** What one machine's cctr answers about itself. Consumers key remotes on `host`. */
 export type SourceMeta = {
@@ -29,6 +37,7 @@ export type Source = {
   listSessions(filter?: SessionFilter): Promise<SessionMeta[]>;
   getSession(idOrLatest: string): Promise<SessionMeta | null>;
   readSession(idOrLatest: string): AsyncGenerator<Record>;
+  count(q: CountQuery): Promise<CountResult>;
 };
 
 export type LocalSourceOptions = { host?: string; projectsDir?: string; version?: string };
@@ -81,6 +90,24 @@ export class LocalSource implements Source {
     const f = resolveSessionFile(idOrLatest, listSessionFiles(this.dir));
     if (!f) return;
     yield* readRecords(f.file);
+  }
+
+  /**
+   * shortcut: two passes per session (listSessions for the filters, then the count),
+   * the second only over sessions that passed; fold them into one if counting gets slow.
+   */
+  async count(q: CountQuery): Promise<CountResult> {
+    if (!isCountKind(q.kind)) throw new UnknownCountKindError(q.kind);
+    const out = emptyCount();
+    for (const m of await this.listSessions({ cwd: q.cwd, since: q.since })) {
+      out.sessions++;
+      out.activeMs += m.durationMs;
+      for await (const rec of readRecords(m.file)) {
+        if (rec.timestamp && !Number.isNaN(Date.parse(rec.timestamp))) out.records++;
+        for (const k of countKeys(rec, q.kind)) out.counts[k] = (out.counts[k] ?? 0) + 1;
+      }
+    }
+    return out;
   }
 }
 

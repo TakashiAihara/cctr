@@ -3,6 +3,7 @@ import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { Code, ConnectError, type Client, createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import {
+  CountRequestSchema,
   GetMetaRequestSchema,
   GetSessionRequestSchema,
   ListSessionsRequestSchema,
@@ -11,8 +12,8 @@ import {
 } from "@cctr/proto/cctr/v1/transcripts_pb";
 import { parseLine } from "../records";
 import type { Source, SourceMeta } from "../source";
-import type { Record, SessionFilter, SessionMeta } from "../types";
-import { toMeta } from "../wire";
+import type { CountQuery, CountResult, Record, SessionFilter, SessionMeta } from "../types";
+import { num, toMeta } from "../wire";
 
 /** Narrower than `typeof fetch` so tests can hand in a Hono app's fetch. */
 export type FetchLike = (input: string | URL | globalThis.Request, init?: RequestInit) => Promise<Response>;
@@ -84,6 +85,24 @@ export class HttpSource implements Source {
       if (e instanceof ConnectError && e.code === Code.NotFound) return;
       throw this.remoteError(e);
     }
+  }
+
+  async count(q: CountQuery): Promise<CountResult> {
+    const r = await this.wrap(() =>
+      this.client.count(
+        create(CountRequestSchema, {
+          kind: q.kind,
+          cwd: q.cwd ?? "",
+          since: q.since ? timestampFromDate(new Date(q.since)) : undefined,
+        }),
+      ),
+    );
+    return {
+      sessions: num(r.sessions, "sessions"),
+      records: num(r.records, "records"),
+      activeMs: num(r.activeMs, "activeMs"),
+      counts: Object.fromEntries(Object.entries(r.counts).map(([k, v]) => [k, num(v, `counts.${k}`)])),
+    };
   }
 
   private async wrap<T>(f: () => Promise<T>): Promise<T> {

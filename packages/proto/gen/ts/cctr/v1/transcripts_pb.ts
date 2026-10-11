@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file cctr/v1/transcripts.proto.
  */
 export const file_cctr_v1_transcripts: GenFile = /*@__PURE__*/
-  fileDesc("ChljY3RyL3YxL3RyYW5zY3JpcHRzLnByb3RvEgdjY3RyLnYxIhAKDkdldE1ldGFSZXF1ZXN0InwKD0dldE1ldGFSZXNwb25zZRIMCgRuYW1lGAEgASgJEg8KB3ZlcnNpb24YAiABKAkSFgoOc2NoZW1hX3ZlcnNpb24YAyABKA0SDwoHbWFjaGluZRgEIAEoCRIUCgxwcm9qZWN0c19kaXIYBSABKAkSCwoDcGlkGAYgASgNIlAKBVVzYWdlEg0KBWlucHV0GAEgASgEEg4KBm91dHB1dBgCIAEoBBISCgpjYWNoZV9yZWFkGAMgASgEEhQKDGNhY2hlX2NyZWF0ZRgEIAEoBCKCBAoHU2Vzc2lvbhIKCgJpZBgBIAEoCRIMCgRmaWxlGAIgASgJEgsKA2N3ZBgDIAEoCRISCgpnaXRfYnJhbmNoGAQgASgJEg8KB3ZlcnNpb24YBSABKAkSEgoKZW50cnlwb2ludBgGIAEoCRINCgV0aXRsZRgHIAEoCRITCgtsYXN0X3Byb21wdBgIIAEoCRIsCghmaXJzdF90cxgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASKwoHbGFzdF90cxgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEwoLZHVyYXRpb25fbXMYCyABKAQSDwoHcmVjb3JkcxgMIAEoBBISCgp1c2VyX3R1cm5zGA0gASgEEhYKDmFzc2lzdGFudF9tc2dzGA4gASgEEg4KBm1vZGVscxgPIAMoCRIdCgV1c2FnZRgQIAEoCzIOLmNjdHIudjEuVXNhZ2USKgoFdG9vbHMYESADKAsyGy5jY3RyLnYxLlNlc3Npb24uVG9vbHNFbnRyeRISCgpzaXplX2J5dGVzGBIgASgEEikKBW10aW1lGBMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBosCgpUb29sc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoBDoCOAEiXAoTTGlzdFNlc3Npb25zUmVxdWVzdBILCgNjd2QYASABKAkSKQoFc2luY2UYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg0KBWxpbWl0GAMgASgNIjoKFExpc3RTZXNzaW9uc1Jlc3BvbnNlEiIKCHNlc3Npb25zGAEgAygLMhAuY2N0ci52MS5TZXNzaW9uIh8KEUdldFNlc3Npb25SZXF1ZXN0EgoKAmlkGAEgASgJIjcKEkdldFNlc3Npb25SZXNwb25zZRIhCgdzZXNzaW9uGAEgASgLMhAuY2N0ci52MS5TZXNzaW9uIiAKElJlYWRSZWNvcmRzUmVxdWVzdBIKCgJpZBgBIAEoCSIjChNSZWFkUmVjb3Jkc1Jlc3BvbnNlEgwKBGxpbmUYASABKAkysQIKEVRyYW5zY3JpcHRTZXJ2aWNlEjwKB0dldE1ldGESFy5jY3RyLnYxLkdldE1ldGFSZXF1ZXN0GhguY2N0ci52MS5HZXRNZXRhUmVzcG9uc2USSwoMTGlzdFNlc3Npb25zEhwuY2N0ci52MS5MaXN0U2Vzc2lvbnNSZXF1ZXN0Gh0uY2N0ci52MS5MaXN0U2Vzc2lvbnNSZXNwb25zZRJFCgpHZXRTZXNzaW9uEhouY2N0ci52MS5HZXRTZXNzaW9uUmVxdWVzdBobLmNjdHIudjEuR2V0U2Vzc2lvblJlc3BvbnNlEkoKC1JlYWRSZWNvcmRzEhsuY2N0ci52MS5SZWFkUmVjb3Jkc1JlcXVlc3QaHC5jY3RyLnYxLlJlYWRSZWNvcmRzUmVzcG9uc2UwAWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+  fileDesc("ChljY3RyL3YxL3RyYW5zY3JpcHRzLnByb3RvEgdjY3RyLnYxIhAKDkdldE1ldGFSZXF1ZXN0InwKD0dldE1ldGFSZXNwb25zZRIMCgRuYW1lGAEgASgJEg8KB3ZlcnNpb24YAiABKAkSFgoOc2NoZW1hX3ZlcnNpb24YAyABKA0SDwoHbWFjaGluZRgEIAEoCRIUCgxwcm9qZWN0c19kaXIYBSABKAkSCwoDcGlkGAYgASgNIlAKBVVzYWdlEg0KBWlucHV0GAEgASgEEg4KBm91dHB1dBgCIAEoBBISCgpjYWNoZV9yZWFkGAMgASgEEhQKDGNhY2hlX2NyZWF0ZRgEIAEoBCKCBAoHU2Vzc2lvbhIKCgJpZBgBIAEoCRIMCgRmaWxlGAIgASgJEgsKA2N3ZBgDIAEoCRISCgpnaXRfYnJhbmNoGAQgASgJEg8KB3ZlcnNpb24YBSABKAkSEgoKZW50cnlwb2ludBgGIAEoCRINCgV0aXRsZRgHIAEoCRITCgtsYXN0X3Byb21wdBgIIAEoCRIsCghmaXJzdF90cxgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASKwoHbGFzdF90cxgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEwoLZHVyYXRpb25fbXMYCyABKAQSDwoHcmVjb3JkcxgMIAEoBBISCgp1c2VyX3R1cm5zGA0gASgEEhYKDmFzc2lzdGFudF9tc2dzGA4gASgEEg4KBm1vZGVscxgPIAMoCRIdCgV1c2FnZRgQIAEoCzIOLmNjdHIudjEuVXNhZ2USKgoFdG9vbHMYESADKAsyGy5jY3RyLnYxLlNlc3Npb24uVG9vbHNFbnRyeRISCgpzaXplX2J5dGVzGBIgASgEEikKBW10aW1lGBMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBosCgpUb29sc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoBDoCOAEiXAoTTGlzdFNlc3Npb25zUmVxdWVzdBILCgNjd2QYASABKAkSKQoFc2luY2UYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg0KBWxpbWl0GAMgASgNIjoKFExpc3RTZXNzaW9uc1Jlc3BvbnNlEiIKCHNlc3Npb25zGAEgAygLMhAuY2N0ci52MS5TZXNzaW9uIh8KEUdldFNlc3Npb25SZXF1ZXN0EgoKAmlkGAEgASgJIjcKEkdldFNlc3Npb25SZXNwb25zZRIhCgdzZXNzaW9uGAEgASgLMhAuY2N0ci52MS5TZXNzaW9uIiAKElJlYWRSZWNvcmRzUmVxdWVzdBIKCgJpZBgBIAEoCSIjChNSZWFkUmVjb3Jkc1Jlc3BvbnNlEgwKBGxpbmUYASABKAkiVAoMQ291bnRSZXF1ZXN0EgwKBGtpbmQYASABKAkSCwoDY3dkGAIgASgJEikKBXNpbmNlGAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCKoAQoNQ291bnRSZXNwb25zZRIQCghzZXNzaW9ucxgBIAEoBBIPCgdyZWNvcmRzGAIgASgEEhEKCWFjdGl2ZV9tcxgDIAEoBBIyCgZjb3VudHMYBCADKAsyIi5jY3RyLnYxLkNvdW50UmVzcG9uc2UuQ291bnRzRW50cnkaLQoLQ291bnRzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgEOgI4ATLpAgoRVHJhbnNjcmlwdFNlcnZpY2USPAoHR2V0TWV0YRIXLmNjdHIudjEuR2V0TWV0YVJlcXVlc3QaGC5jY3RyLnYxLkdldE1ldGFSZXNwb25zZRJLCgxMaXN0U2Vzc2lvbnMSHC5jY3RyLnYxLkxpc3RTZXNzaW9uc1JlcXVlc3QaHS5jY3RyLnYxLkxpc3RTZXNzaW9uc1Jlc3BvbnNlEkUKCkdldFNlc3Npb24SGi5jY3RyLnYxLkdldFNlc3Npb25SZXF1ZXN0GhsuY2N0ci52MS5HZXRTZXNzaW9uUmVzcG9uc2USSgoLUmVhZFJlY29yZHMSGy5jY3RyLnYxLlJlYWRSZWNvcmRzUmVxdWVzdBocLmNjdHIudjEuUmVhZFJlY29yZHNSZXNwb25zZTABEjYKBUNvdW50EhUuY2N0ci52MS5Db3VudFJlcXVlc3QaFi5jY3RyLnYxLkNvdW50UmVzcG9uc2ViBnByb3RvMw", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message cctr.v1.GetMetaRequest
@@ -348,6 +348,79 @@ export const ReadRecordsResponseSchema: GenMessage<ReadRecordsResponse> = /*@__P
   messageDesc(file_cctr_v1_transcripts, 9);
 
 /**
+ * @generated from message cctr.v1.CountRequest
+ */
+export type CountRequest = Message<"cctr.v1.CountRequest"> & {
+  /**
+   * "bash", "bash-full", "files", "slash", "skill" or "hour"; anything else is InvalidArgument.
+   *
+   * @generated from field: string kind = 1;
+   */
+  kind: string;
+
+  /**
+   * Only sessions whose cwd is exactly this path.
+   *
+   * @generated from field: string cwd = 2;
+   */
+  cwd: string;
+
+  /**
+   * Only sessions with a record at or after this time.
+   *
+   * @generated from field: google.protobuf.Timestamp since = 3;
+   */
+  since?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message cctr.v1.CountRequest.
+ * Use `create(CountRequestSchema)` to create a new message.
+ */
+export const CountRequestSchema: GenMessage<CountRequest> = /*@__PURE__*/
+  messageDesc(file_cctr_v1_transcripts, 10);
+
+/**
+ * @generated from message cctr.v1.CountResponse
+ */
+export type CountResponse = Message<"cctr.v1.CountResponse"> & {
+  /**
+   * Sessions that passed the filters.
+   *
+   * @generated from field: uint64 sessions = 1;
+   */
+  sessions: bigint;
+
+  /**
+   * Records carrying a timestamp.
+   *
+   * @generated from field: uint64 records = 2;
+   */
+  records: bigint;
+
+  /**
+   * Each session's first-to-last span, summed.
+   *
+   * @generated from field: uint64 active_ms = 3;
+   */
+  activeMs: bigint;
+
+  /**
+   * key -> how many times it was seen; what a key is depends on the kind.
+   *
+   * @generated from field: map<string, uint64> counts = 4;
+   */
+  counts: { [key: string]: bigint };
+};
+
+/**
+ * Describes the message cctr.v1.CountResponse.
+ * Use `create(CountResponseSchema)` to create a new message.
+ */
+export const CountResponseSchema: GenMessage<CountResponse> = /*@__PURE__*/
+  messageDesc(file_cctr_v1_transcripts, 11);
+
+/**
  * One machine's transcripts, read-only. The same contract whether the caller
  * is the CLI on another machine, the Web UI, or ccx pulling machines together.
  *
@@ -396,6 +469,18 @@ export const TranscriptService: GenService<{
     methodKind: "server_streaming";
     input: typeof ReadRecordsRequestSchema;
     output: typeof ReadRecordsResponseSchema;
+  },
+  /**
+   * One count over this machine's records (Bash commands, edited files, slash
+   * commands, skills, records per UTC hour), so a caller sums hosts instead of
+   * reading every transcript itself.
+   *
+   * @generated from rpc cctr.v1.TranscriptService.Count
+   */
+  count: {
+    methodKind: "unary";
+    input: typeof CountRequestSchema;
+    output: typeof CountResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_cctr_v1_transcripts, 0);

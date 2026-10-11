@@ -2,8 +2,9 @@ import { create } from "@bufbuild/protobuf";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { Code, ConnectError, type ServiceImpl, createConnectRouter } from "@connectrpc/connect";
 import { createFetchHandler } from "@connectrpc/connect/protocol";
-import { type Source, toWire } from "@cctr/core";
+import { type CountKind, type Source, UnknownCountKindError, isCountKind, toWire } from "@cctr/core";
 import {
+  CountResponseSchema,
   GetMetaResponseSchema,
   GetSessionResponseSchema,
   ListSessionsResponseSchema,
@@ -92,6 +93,22 @@ export function transcriptImpl(source: Source): ServiceImpl<typeof TranscriptSer
       for await (const r of source.readSession(req.id)) {
         yield create(ReadRecordsResponseSchema, { line: JSON.stringify(r.raw) });
       }
+    },
+
+    async count(req) {
+      if (!isCountKind(req.kind))
+        throw new ConnectError(new UnknownCountKindError(req.kind).message, Code.InvalidArgument);
+      const r = await source.count({
+        kind: req.kind as CountKind,
+        cwd: req.cwd || undefined,
+        since: req.since ? timestampDate(req.since).toISOString() : undefined,
+      });
+      return create(CountResponseSchema, {
+        sessions: BigInt(r.sessions),
+        records: BigInt(r.records),
+        activeMs: BigInt(r.activeMs),
+        counts: Object.fromEntries(Object.entries(r.counts).map(([k, v]) => [k, BigInt(v)])),
+      });
     },
   };
 }

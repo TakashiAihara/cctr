@@ -1,6 +1,7 @@
 export * from "./types";
 export * from "./discover";
 export * from "./records";
+export * from "./count";
 export * from "./session";
 export * from "./source";
 export * from "./remote/http";
