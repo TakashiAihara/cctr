@@ -4,6 +4,7 @@ export * from "./discover";
 export * from "./records";
 export * from "./search";
 export * from "./session";
+export * from "./messages";
 export * from "./source";
 export * from "./remote/http";
 export * from "./remote/ssh";

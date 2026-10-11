@@ -6,6 +6,7 @@ import { registerPath } from "./commands/path";
 import { registerRemote } from "./commands/remote";
 import { registerSearch } from "./commands/search";
 import { registerSessions } from "./commands/sessions";
+import { registerTranscript } from "./commands/transcript";
 import { CliError, log } from "./output";
 import { VERSION } from "./version";
 
@@ -25,6 +26,7 @@ program.exitOverride((err) => {
 
 registerSessions(program);
 registerSearch(program);
+registerTranscript(program);
 registerPath(program);
 registerMeta(program);
 registerAgent(program);

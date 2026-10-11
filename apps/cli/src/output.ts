@@ -26,6 +26,11 @@ export function fmtK(n: number): string {
   return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
 }
 
+/** A transcript timestamp is ISO UTC; a table wants it as `YYYY-MM-DD HH:MM`, with or without seconds. */
+export function fmtTs(ts: string | null, secs = false): string {
+  return ts ? ts.replace("T", " ").slice(0, secs ? 19 : 16) : "-";
+}
+
 export class CliError extends Error {
   constructor(
     message: string,
