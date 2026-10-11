@@ -269,6 +269,10 @@ describe("excerpts", () => {
     expect(hit("needle😀cd", "needle", 1)).toBe("needle😀…");
   });
 
+  test("the match is found in the block as written, not in its collapsed form", () => {
+    expect(hit("x".repeat(100) + "a  b" + "y".repeat(100), "a  b", 2)).toBe("…xxa byy…");
+  });
+
   test("context 0 is the match alone", () => {
     expect(hit("xx needle yy", "needle", 0)).toBe("…needle…");
   });

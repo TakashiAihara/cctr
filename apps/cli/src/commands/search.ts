@@ -32,7 +32,7 @@ export function registerSearch(program: Command): void {
     .option("--case", "case-sensitive (default: insensitive)")
     .option("--role <role>", "whose text to search: user, assistant, or all", "all")
     .option("--thinking", "also search assistant thinking blocks")
-    .option("--tools", "also search assistant tool calls")
+    .option("--tools", "also search assistant tool calls: the tool name and its input's string values, one per line")
     .option("--context <n>", "chars kept either side of a hit", "60")
     .option("--limit <n>", "at most n hits (n sessions with --group or -l)", "50")
     .option("--session <id>", "search only this session")
@@ -69,10 +69,10 @@ export function registerSearch(program: Command): void {
         hitsPerSession: mode === "files" ? 1 : mode === "group" ? hitsPer : undefined,
       };
       const src = resolveHosts(hostOf(g.host, q.session ?? ""));
-      // a session nobody has is not a session without hits
-      if (q.session && !(await src.getSession(q.session)))
-        throw new CliError(`session not found: ${q.session}`, EXIT_NOT_FOUND);
       const { results, errors } = await src.search(q);
+      // a session nobody has is not a session without hits; asked only when nothing came back
+      if (q.session && results.length === 0 && !errors.length && !(await src.getSession(q.session)))
+        throw new CliError(`session not found: ${q.session}`, EXIT_NOT_FOUND);
       for (const e of errors) log(`cctr: ${e.host}: ${e.error}`);
       if (g.format === "ndjson") await writeNdjson(results);
       else if (g.format === "id") for (const r of results) console.log(`${r.session.host}:${r.session.id}`);

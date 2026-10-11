@@ -104,7 +104,9 @@ describe("SshSource.search", () => {
     const remote = join(bin, "cctr-remote");
     writeFileSync(
       remote,
-      `#!/bin/sh\nCCTR_PROJECTS_DIR='${FIX}' CCTR_CONFIG_DIR='${join(tmp, "config")}' exec bun '${CLI}' "$@"\n`,
+      // a search without its own --limit would be cut at the remote CLI's default; refuse it so the test sees that
+      `#!/bin/sh\ncase "$*" in *search*) case "$*" in *--limit*) ;; *) echo "no --limit" >&2; exit 9;; esac;; esac\n` +
+        `CCTR_PROJECTS_DIR='${FIX}' CCTR_CONFIG_DIR='${join(tmp, "config")}' exec bun '${CLI}' "$@"\n`,
     );
     chmodSync(ssh, 0o755);
     chmodSync(remote, 0o755);
@@ -115,6 +117,7 @@ describe("SshSource.search", () => {
     const capped: SessionHits[] = [];
     for await (const s of src.search({ query: "files", hitsPerSession: 1, context: 0 })) capped.push(s);
     expect(capped.map((s) => [s.total, s.hits.length, s.hits[0]!.excerpt])).toEqual([[2, 1, "…files"]]);
+
     const dashed: SessionHits[] = [];
     for await (const s of src.search({ query: "-x" })) dashed.push(s);
     expect(dashed).toEqual([]);
