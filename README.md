@@ -32,6 +32,9 @@ cctr sessions list --fields sid,cwd      # only these keys, in this order
 cctr sessions latest --format id         # bare id, for $(...); latest = most recently modified file
 cctr sessions get <id|prefix|sid|latest> # one session's metadata; sid = 6-char hash of the id
 cctr sessions records <id>               # the raw transcript, NDJSON
+cctr show <id> --format table            # the conversation, readable; --tools / --thinking add those
+cctr outline <id> --format table         # one line per message: m0, m1, ...
+cctr read <id> m3..m7 --format table     # those messages, within --budget tokens (--no-budget for all)
 cctr path <id>                           # the cwd it ran in, for cd "$(cctr path latest)"
 cctr meta                                # what this cctr knows about itself
 ```

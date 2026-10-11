@@ -17,13 +17,20 @@ export function table(headers: string[], rows: string[][]): string {
   return [line(headers), line(w.map((n) => "-".repeat(n))), ...rows.map(line)].join("\n");
 }
 
+/** Counted in code points, so a cut never splits a surrogate pair (a grapheme of several code points still can be). */
 export function trunc(s: string, n: number, side: "left" | "right" = "right"): string {
-  if (s.length <= n) return s;
-  return side === "right" ? s.slice(0, n - 1) + "…" : "…" + s.slice(-(n - 1));
+  const cps = Array.from(s);
+  if (cps.length <= n) return s;
+  return side === "right" ? cps.slice(0, n - 1).join("") + "…" : "…" + cps.slice(-(n - 1)).join("");
 }
 
 export function fmtK(n: number): string {
   return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
+}
+
+/** A transcript timestamp is ISO UTC; a table wants it as `YYYY-MM-DD HH:MM`, with or without seconds. */
+export function fmtTs(ts: string | null, secs = false): string {
+  return ts ? ts.replace("T", " ").slice(0, secs ? 19 : 16) : "-";
 }
 
 export class CliError extends Error {

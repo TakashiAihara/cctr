@@ -106,7 +106,7 @@ export function blocks(content: unknown): globalThis.Record<string, unknown>[] {
   return content.filter((b): b is globalThis.Record<string, unknown> => !!b && typeof b === "object");
 }
 
-function isToolResultOnly(content: unknown): boolean {
+export function isToolResultOnly(content: unknown): boolean {
   const bs = blocks(content);
   return bs.length > 0 && bs.every((b) => b.type === "tool_result");
 }
