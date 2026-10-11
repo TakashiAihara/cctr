@@ -101,11 +101,10 @@ export function transcriptImpl(source: Source): ServiceImpl<typeof TranscriptSer
         query: req.query,
         regex: req.regex,
         caseSensitive: req.caseSensitive,
-        role: req.role === "user" || req.role === "assistant" ? req.role : undefined,
+        role: roleOf(req.role),
         thinking: req.thinking,
         tools: req.tools,
-        // 0 is not a context of zero chars but the absence of one
-        context: req.context || undefined,
+        context: req.context,
         hitsPerSession: req.hitsPerSession || undefined,
         limit: req.limit || undefined,
         session: req.session || undefined,
@@ -146,4 +145,11 @@ function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
   let diff = a.length ^ b.length;
   for (let i = 0; i < a.length; i++) diff |= a[i]! ^ (b[i] ?? 0);
   return diff === 0;
+}
+
+/** Empty is both sides; anything else that is not a side is the caller's mistake, not a wider search. */
+function roleOf(r: string): SearchQuery["role"] {
+  if (r === "") return undefined;
+  if (r === "user" || r === "assistant") return r;
+  throw new ConnectError(`unknown role: ${r}`, Code.InvalidArgument);
 }

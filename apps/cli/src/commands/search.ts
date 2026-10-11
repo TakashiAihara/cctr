@@ -28,13 +28,13 @@ export function registerSearch(program: Command): void {
   program
     .command("search <query>")
     .description("search transcript text, newest session first (JSON hits by default)")
-    .option("--regex", "the query is a regular expression")
+    .option("--regex", "the query is a JavaScript regular expression (u flag: escape only what needs escaping)")
     .option("--case", "case-sensitive (default: insensitive)")
     .option("--role <role>", "whose text to search: user, assistant, or all", "all")
     .option("--thinking", "also search assistant thinking blocks")
     .option("--tools", "also search assistant tool calls")
     .option("--context <n>", "chars kept either side of a hit", "60")
-    .option("--limit <n>", "at most n sessions", "50")
+    .option("--limit <n>", "at most n hits (n sessions with --group or -l)", "50")
     .option("--session <id>", "search only this session")
     .option("--group", "one entry per session with its hits, instead of one per hit")
     .option("--hits-per <n>", "hits kept per session, with --group", "2")
@@ -48,7 +48,9 @@ export function registerSearch(program: Command): void {
       const context = count(opts.context, "--context");
       const hitsPer = positive(opts.hitsPer, "--hits-per");
       const role = roleOf(opts.role);
-      if (opts.regex) checkRegex(query);
+      checkQuery(query, opts.regex);
+      if (opts.since !== undefined && Number.isNaN(Date.parse(opts.since)))
+        throw new CliError(`--since is not a date: ${opts.since}`, 2);
 
       const mode: Mode = opts.filesWithMatches ? "files" : opts.group ? "group" : "flat";
       const q: SearchQuery = {
@@ -66,7 +68,11 @@ export function registerSearch(program: Command): void {
         // flat mode keeps every hit and cuts the whole list, so no cap per session here
         hitsPerSession: mode === "files" ? 1 : mode === "group" ? hitsPer : undefined,
       };
-      const { results, errors } = await resolveHosts(hostOf(g.host, q.session ?? "")).search(q);
+      const src = resolveHosts(hostOf(g.host, q.session ?? ""));
+      // a session nobody has is not a session without hits
+      if (q.session && !(await src.getSession(q.session)))
+        throw new CliError(`session not found: ${q.session}`, EXIT_NOT_FOUND);
+      const { results, errors } = await src.search(q);
       for (const e of errors) log(`cctr: ${e.host}: ${e.error}`);
       if (g.format === "ndjson") await writeNdjson(results);
       else if (g.format === "id") for (const r of results) console.log(`${r.session.host}:${r.session.id}`);
@@ -79,7 +85,7 @@ export function registerSearch(program: Command): void {
 /** The remote path reads this: one whole SessionHits per line, ignoring the display mode. */
 async function writeNdjson(results: SessionHits[]): Promise<void> {
   for (const r of results) {
-    // a slow pipe must not make the process buffer every session's hits
+    // the results are in memory already; waiting for drain keeps stdout from holding a second copy
     if (!process.stdout.write(JSON.stringify(r) + "\n")) {
       await new Promise((res) => process.stdout.once("drain", res));
     }
@@ -165,10 +171,10 @@ function count(v: string, flag: string): number {
   return n;
 }
 
-/** Compiled here so a bad regex is a usage error before any host is asked. */
-function checkRegex(query: string): void {
+/** Compiled here so a bad regex or an empty query is a usage error before any host is asked. */
+function checkQuery(query: string, regex: boolean | undefined): void {
   try {
-    compileMatcher({ query, regex: true });
+    compileMatcher({ query, regex });
   } catch (e) {
     throw new CliError(e instanceof Error ? e.message : String(e), 2);
   }

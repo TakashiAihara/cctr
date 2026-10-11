@@ -63,18 +63,22 @@ export class SshSource implements Source {
 
   async *search(q: SearchQuery): AsyncGenerator<SessionHits> {
     // global options before the subcommand, so the remote's own cctr reads them
-    const args = ["--host", "local", "--format", "ndjson", "search", q.query];
+    const args = ["--host", "local", "--format", "ndjson", "search"];
     if (q.regex) args.push("--regex");
     if (q.caseSensitive) args.push("--case");
     if (q.role) args.push("--role", q.role);
     if (q.thinking) args.push("--thinking");
     if (q.tools) args.push("--tools");
-    if (q.context) args.push("--context", String(q.context));
-    if (q.hitsPerSession) args.push("--hits-per", String(q.hitsPerSession));
-    if (q.limit) args.push("--limit", String(q.limit));
+    if (q.context !== undefined) args.push("--context", String(q.context));
+    // the remote applies --hits-per only in --group mode; ndjson output is the same in every mode
+    if (q.hitsPerSession) args.push("--group", "--hits-per", String(q.hitsPerSession));
+    // no limit means every session, but the remote CLI has a default of its own
+    args.push("--limit", String(q.limit || Number.MAX_SAFE_INTEGER));
     if (q.session) args.push("--session", q.session);
     if (q.cwd) args.push("--cwd", q.cwd);
     if (q.since) args.push("--since", q.since);
+    // `--` last, so a query starting with `-` is not read as an option there
+    args.push("--", q.query);
     for await (const line of this.stream(args)) {
       const hits = JSON.parse(line) as SessionHits;
       // the remote answers as `local`; the caller knows the name it reached it by

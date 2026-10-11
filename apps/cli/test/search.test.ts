@@ -69,9 +69,14 @@ describe("cctr search", () => {
   test("--role, --session and table output", () => {
     expect((JSON.parse(cctr(["search", "files", "--role", "user"]).out) as unknown[]).length).toBe(1);
     expect(cctr(["search", "files", "--role", "bot"]).code).toBe(2);
-    expect(JSON.parse(cctr(["search", "h", "--session", "bbbb"]).out).every((h: { id: string }) => h.id === B)).toBe(
-      true,
-    );
+    const inB = JSON.parse(cctr(["search", "h", "--session", "bbbb"]).out) as { id: string }[];
+    expect(inB.length).toBeGreaterThan(0);
+    expect(inB.every((h) => h.id === B)).toBe(true);
+    const missing = cctr(["search", "h", "--session", "zzzz"]);
+    expect(missing.code).toBe(3);
+    expect(missing.err).toMatch(/session not found: zzzz/);
+    expect(cctr(["search", "h", "--since", "yesterday"]).code).toBe(2);
+    expect(cctr(["search", ""]).code).toBe(2);
     const t = cctr(["--format", "table", "search", "files"]);
     expect(t.code).toBe(0);
     expect(t.out).toContain("list the files");
@@ -106,6 +111,13 @@ describe("SshSource.search", () => {
     const src = new SshSource({ host: "sshbox", target: "someone@box", sshCommand: ssh, command: remote });
     const out: SessionHits[] = [];
     for await (const s of src.search({ query: "two files", role: "assistant" })) out.push(s);
+    // the flags reach the remote: per-session cap, a context of 0, a query that looks like an option
+    const capped: SessionHits[] = [];
+    for await (const s of src.search({ query: "files", hitsPerSession: 1, context: 0 })) capped.push(s);
+    expect(capped.map((s) => [s.total, s.hits.length, s.hits[0]!.excerpt])).toEqual([[2, 1, "…files"]]);
+    const dashed: SessionHits[] = [];
+    for await (const s of src.search({ query: "-x" })) dashed.push(s);
+    expect(dashed).toEqual([]);
     expect(out.map((s) => [s.session.host, s.session.id, s.total, s.hits[0]!.excerpt])).toEqual([
       ["sshbox", A, 1, "two files"],
     ]);

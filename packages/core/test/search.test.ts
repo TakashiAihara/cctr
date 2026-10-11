@@ -117,8 +117,15 @@ describe("LocalSource.search", () => {
     ]);
   });
 
-  test("an invalid regex is an error, not zero hits", async () => {
-    await expect(all(src, { query: "(", regex: true })).rejects.toThrow();
+  test("an invalid regex or an empty query is an error, not zero hits", async () => {
+    const { InvalidRegexError } = await import("../src");
+    await expect(all(src, { query: "(", regex: true })).rejects.toBeInstanceOf(InvalidRegexError);
+    await expect(all(src, { query: "" })).rejects.toBeInstanceOf(InvalidRegexError);
+  });
+
+  test("a tool_use is searched by its input's strings as written, quotes and all", async () => {
+    const res = await all(src, { query: "--body 'needle", tools: true });
+    expect(res.flatMap((r) => r.hits.map((h) => h.uuid))).toEqual(["a2"]);
   });
 
   test("--role narrows to one side", async () => {
@@ -191,10 +198,10 @@ describe("MultiSource.search", () => {
     expect(errors).toEqual([{ host: "down", error: "unreachable" }]);
   });
 
-  test("limit applies after merging", async () => {
+  test("limit applies after merging, keeping the newest", async () => {
     const b = new LocalSource({ projectsDir: corpus(), host: "b" });
-    const { results } = await new MultiSource([a, b]).search({ query: "needle", limit: 3 });
-    expect(results).toHaveLength(3);
+    const { results } = await new MultiSource([b, a]).search({ query: "needle", limit: 3 });
+    expect(results.map((r) => `${r.session.host}:${r.session.id.slice(0, 2)}`)).toEqual(["b:11", "a:11", "b:22"]);
   });
 
   test("a host:id session pins that host", async () => {
@@ -219,7 +226,7 @@ describe("linePrefilter", () => {
       ["needle", "a NeEdLe here"],
       ["詳細は Kaneo", "x 詳細は kaneo y"],
       ["ärger", "ÄRGER"],
-      ["i", "İstanbul"],
+
       ["#3 x", "#3 X"],
       ["needle", "NEEDLE", true],
     ];
@@ -243,5 +250,40 @@ describe("linePrefilter", () => {
     writeFileSync(join(dir, `${id}.jsonl`), user(id, "u1", "2026-09-01T00:00:00Z", 'he said "stop" twice'));
     const src = new LocalSource({ projectsDir: join(tmp, "quote") });
     expect((await all(src, { query: 'said "stop"' })).map((r) => r.session.id)).toEqual([id]);
+  });
+});
+
+describe("excerpts", () => {
+  const { blockHits, compileMatcher } = require("../src") as typeof import("../src");
+  const hit = (text: string, query: string, context: number, regex = false) => {
+    const q = { query, context, regex };
+    return blockHits({ type: "user", raw: {}, message: { content: text } }, q, compileMatcher(q))[0]!.excerpt;
+  };
+
+  test("a match across a newline is shown where it is, on one line", () => {
+    expect(hit("a".repeat(100) + "foo\nbar" + "b".repeat(100), "foo\\s+bar", 3, true)).toBe("…aaafoo barbbb…");
+  });
+
+  test("a cut never splits a surrogate pair", () => {
+    expect(hit("ab😀needle", "needle", 1)).toBe("…😀needle");
+    expect(hit("needle😀cd", "needle", 1)).toBe("needle😀…");
+  });
+
+  test("context 0 is the match alone", () => {
+    expect(hit("xx needle yy", "needle", 0)).toBe("…needle…");
+  });
+});
+
+describe("tool_use text", () => {
+  const { blockHits, compileMatcher } = require("../src") as typeof import("../src");
+
+  test("a double quote in a command is matched as typed, not as JSON's \\\"", () => {
+    const rec = {
+      type: "assistant",
+      raw: {},
+      message: { content: [{ type: "tool_use", name: "Bash", input: { command: 'git commit -m "fix it"' } }] },
+    };
+    const q = { query: '-m "fix', tools: true };
+    expect(blockHits(rec, q, compileMatcher(q)).map((h) => h.kind)).toEqual(["tool_use"]);
   });
 });

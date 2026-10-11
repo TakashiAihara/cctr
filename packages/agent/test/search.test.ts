@@ -22,7 +22,7 @@ describe("Search over HTTP", () => {
     expect(out[0]!.session.title).toBe("List files in proj-a");
     expect(out[0]!.total).toBe(2);
     expect(out[0]!.hits).toEqual([
-      { uuid: out[0]!.hits[0]!.uuid, ts: "2026-09-01T00:00:00.000Z", role: "user", kind: "text", excerpt: "…he files" },
+      { uuid: "u1", ts: "2026-09-01T00:00:00.000Z", role: "user", kind: "text", excerpt: "…he files" },
     ]);
   });
 
@@ -35,6 +35,23 @@ describe("Search over HTTP", () => {
     };
     await expect(run()).rejects.toThrow(/remote-a/);
     // the caller's mistake, not a server failure
+    await expect(run()).rejects.toMatchObject({ code: Code.InvalidArgument });
+  });
+
+  test("context 0 reaches the agent as 0, not as the default", async () => {
+    const src = new HttpSource({ host: "remote-a", url: "http://x", token: GOOD, fetch: fetchApp });
+    const out: SessionHits[] = [];
+    for await (const s of src.search({ query: "files", role: "assistant", context: 0 })) out.push(s);
+    expect(out[0]!.hits[0]!.excerpt).toBe("…files");
+  });
+
+  test("an unknown role is InvalidArgument, not a wider search", async () => {
+    const src = new HttpSource({ host: "remote-a", url: "http://x", token: GOOD, fetch: fetchApp });
+    const run = async () => {
+      for await (const _ of src.search({ query: "x", role: "bot" as "user" })) {
+        // nothing
+      }
+    };
     await expect(run()).rejects.toMatchObject({ code: Code.InvalidArgument });
   });
 

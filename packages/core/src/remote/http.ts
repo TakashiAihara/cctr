@@ -97,7 +97,7 @@ export class HttpSource implements Source {
           role: q.role ?? "",
           thinking: q.thinking,
           tools: q.tools,
-          context: q.context ?? 0,
+          context: q.context,
           hitsPerSession: q.hitsPerSession ?? 0,
           limit: q.limit ?? 0,
           session: q.session ?? "",
