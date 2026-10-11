@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { Command } from "commander";
 import { registerAgent } from "./commands/agent";
+import { registerCompletion } from "./commands/completion";
 import { registerMeta } from "./commands/meta";
 import { registerPath } from "./commands/path";
 import { registerRemote } from "./commands/remote";
@@ -31,6 +32,7 @@ registerPath(program);
 registerMeta(program);
 registerAgent(program);
 registerRemote(program);
+registerCompletion(program);
 
 try {
   await program.parseAsync(process.argv);
