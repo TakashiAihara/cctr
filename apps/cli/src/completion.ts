@@ -152,7 +152,8 @@ export function buildZshCompletion(spec: CompletionSpec): string {
   L.push(`_${p}() {`);
   L.push(`  local context state state_descr line`);
   L.push(`  typeset -A opt_args`);
-  L.push(`  _arguments -C \\`);
+  // -A '-*': options after the first positional belong to the subcommand, not to this level
+  L.push(`  _arguments -C -A '-*' \\`);
   for (const g of globals) L.push(`    ${g} \\`);
   L.push(`    '1: :->cmd' \\`);
   L.push(`    '*::arg:->args'`);
@@ -171,7 +172,7 @@ export function buildZshCompletion(spec: CompletionSpec): string {
     if (cmd.subcommands.length === 0) {
       zshLeaf([...cmd.options, ...spec.globals], L, "          ");
     } else {
-      L.push(`          _arguments -C \\`);
+      L.push(`          _arguments -C -A '-*' \\`);
       for (const g of globals) L.push(`            ${g} \\`);
       L.push(`            '1: :->sub' \\`);
       L.push(`            '*::arg:->subargs'`);

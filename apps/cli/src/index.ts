@@ -17,7 +17,7 @@ const program = new Command("cctr")
   .option("--host <spec>", "local (default), a remote name, all, or a comma list")
   .addOption(
     new Option("--format <fmt>", "json, table, id (a bare id), or ndjson (search)")
-      .choices(["json", "table", "id"])
+      .choices(["json", "table", "id", "ndjson"])
       .default("json"),
   )
   .showHelpAfterError()
