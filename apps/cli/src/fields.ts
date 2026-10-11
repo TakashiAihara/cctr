@@ -36,11 +36,9 @@ const _listed: [Unlisted] extends [never] ? true : [`META_FIELDS is missing`, Un
 /** The named keys of a `--fields` spec, or nothing at all when the whole record was asked for. */
 export function parseFields(spec: string | undefined): Field[] | undefined {
   if (spec === undefined) return undefined;
-  const names = spec
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  if (names.length === 0) throw new CliError("--fields needs at least one field", 2);
+  const names = spec.split(",").map((s) => s.trim());
+  // `id,,host` or a trailing comma is a typo, not a request for fewer columns
+  if (names.some((n) => !n)) throw new CliError(`--fields has an empty name: ${JSON.stringify(spec)}`, 2);
   for (const [i, name] of names.entries()) {
     if (!(META_FIELDS as readonly string[]).includes(name))
       throw new CliError(`unknown field: ${name} (known: ${META_FIELDS.join(", ")})`, 2);
@@ -59,7 +57,7 @@ export function cell(m: SessionMeta, f: Field): string {
   const v = m[f];
   // undefined too: a remote's JSON may simply leave a field out
   if (v === null || v === undefined) return "-";
-  if (typeof v === "object") return JSON.stringify(v);
+  if (typeof v === "object") return oneLine(JSON.stringify(v));
   return oneLine(String(v));
 }
 

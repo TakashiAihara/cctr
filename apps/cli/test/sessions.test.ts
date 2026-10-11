@@ -62,6 +62,8 @@ describe("--fields", () => {
 
   test("an empty or repeated field list is a usage error", () => {
     expect(cctr(["sessions", "list", "--fields", ","]).code).toBe(2);
+    expect(cctr(["sessions", "list", "--fields", "id,,host"]).code).toBe(2);
+    expect(cctr(["sessions", "list", "--fields", "id,"]).code).toBe(2);
     const dup = cctr(["sessions", "list", "--fields", "id,id"]);
     expect(dup.code).toBe(2);
     expect(dup.err).toMatch(/duplicate field: id/);
