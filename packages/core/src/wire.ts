@@ -1,6 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import { timestampDate, timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { type Session, SessionSchema, UsageSchema } from "@cctr/proto/cctr/v1/transcripts_pb";
+import { sidOf } from "./sid";
 import type { SessionMeta } from "./types";
 
 /**
@@ -46,6 +47,7 @@ function num(v: bigint, field: string): number {
 export function toMeta(s: Session, host: string): SessionMeta {
   return {
     id: s.id,
+    sid: sidOf(s.id),
     file: s.file,
     host,
     cwd: s.cwd || null,

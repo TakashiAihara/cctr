@@ -14,7 +14,10 @@ export type SourceMeta = {
   projectsDir: string;
 };
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
+
+/** The first schema whose getSession resolves a sid; an older host can only be asked for its listing. */
+export const SID_SCHEMA = 2;
 
 const MTIME_SLACK_MS = 24 * 60 * 60 * 1000;
 

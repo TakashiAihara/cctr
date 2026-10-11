@@ -1,4 +1,5 @@
 export * from "./types";
+export * from "./sid";
 export * from "./discover";
 export * from "./records";
 export * from "./session";

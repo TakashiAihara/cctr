@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { Readable } from "node:stream";
 import { parseLine } from "../records";
+import { sidOf } from "../sid";
 import type { Source, SourceMeta } from "../source";
 import type { Record, SessionFilter, SessionMeta } from "../types";
 import { lines } from "./http";
@@ -41,15 +42,16 @@ export class SshSource implements Source {
     const args = ["sessions", "list"];
     if (filter.cwd) args.push("--cwd", filter.cwd);
     if (filter.since) args.push("--since", filter.since);
-    if (filter.limit) args.push("--limit", String(filter.limit));
+    // no limit means every session, but the remote CLI has a default of its own
+    args.push("--limit", String(filter.limit || Number.MAX_SAFE_INTEGER));
     const metas = JSON.parse(await this.run(args)) as SessionMeta[];
-    return metas.map((m) => ({ ...m, host: this.host }));
+    return metas.map((m) => this.adopt(m));
   }
 
   async getSession(idOrLatest: string): Promise<SessionMeta | null> {
     const out = await this.runOrNull(["sessions", "get", idOrLatest], [3]);
     if (out === null) return null;
-    return { ...(JSON.parse(out) as SessionMeta), host: this.host };
+    return this.adopt(JSON.parse(out) as SessionMeta);
   }
 
   async *readSession(idOrLatest: string): AsyncGenerator<Record> {
@@ -79,6 +81,11 @@ export class SshSource implements Source {
       // a consumer that stops early (reading the first few records) must not leave an ssh behind
       if (!drained) child.kill("SIGTERM");
     }
+  }
+
+  /** A remote too old to know the sid still names the session, so the sid is recomputed rather than read. */
+  private adopt(m: SessionMeta): SessionMeta {
+    return { ...m, host: this.host, sid: sidOf(m.id) };
   }
 
   private async run(args: string[]): Promise<string> {

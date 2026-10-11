@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
+import { isSid, sidOf } from "./sid";
 
 export function projectsDir(env: NodeJS.ProcessEnv = process.env): string {
   return env.CCTR_PROJECTS_DIR || env.CLAUDE_PROJECTS_DIR || join(homedir(), ".claude", "projects");
@@ -31,22 +32,31 @@ export function listSessionFiles(dir = projectsDir()): FileEntry[] {
 }
 
 /**
- * Resolve a session id, a unique prefix of one, or the literal `latest`, to a
- * file. An exact id always wins; a prefix that matches several sessions is an
- * error rather than a guess, since a guess would hand back the wrong transcript.
+ * Resolve a session id, a unique prefix of one, its sid, or the literal
+ * `latest`, to a file. An exact id always wins; a name that matches several
+ * sessions is an error rather than a guess, since a guess would hand back the
+ * wrong transcript.
  */
 export function resolveSessionFile(idOrLatest: string, files = listSessionFiles()): FileEntry | null {
   if (idOrLatest === "latest") return files[0] ?? null;
   const exact = files.find((f) => basename(f.file, ".jsonl") === idOrLatest);
   if (exact) return exact;
-  const matches = files.filter((f) => basename(f.file, ".jsonl").startsWith(idOrLatest));
+  // an all-digit sid is also a valid id prefix, so a sid-shaped name is looked up both ways
+  const matches = files.filter((f) => {
+    const id = basename(f.file, ".jsonl");
+    return id.startsWith(idOrLatest) || (isSid(idOrLatest) && sidOf(id) === idOrLatest);
+  });
+  return matches.length ? only(idOrLatest, matches) : null;
+}
+
+function only(idOrLatest: string, matches: FileEntry[]): FileEntry {
   if (matches.length > 1) {
     throw new AmbiguousIdError(
       idOrLatest,
       matches.map((f) => basename(f.file, ".jsonl")),
     );
   }
-  return matches[0] ?? null;
+  return matches[0]!;
 }
 
 export class AmbiguousIdError extends Error {
