@@ -36,6 +36,8 @@ export type Record = {
 
 export type SessionMeta = {
   id: string;
+  /** `base32(sha1(id))[:6]`: the same session under a name that fits on a screen. */
+  sid: string;
   file: string;
   /** Host the session file lives on. `local` for the machine cctr runs on. */
   host: string;

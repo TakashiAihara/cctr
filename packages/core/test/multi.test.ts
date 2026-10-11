@@ -15,6 +15,7 @@ import {
   emptyUsage,
   lines,
   listSessionFiles,
+  sidOf,
   splitHost,
 } from "../src";
 
@@ -34,6 +35,7 @@ function fixtureCopy(): string {
 function meta(id: string, host: string, lastTs: string): SessionMeta {
   return {
     id,
+    sid: sidOf(id),
     file: `/x/${id}.jsonl`,
     host,
     cwd: null,

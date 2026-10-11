@@ -28,8 +28,9 @@ Output is JSON unless you ask for a table. stdout is data, stderr is log.
 cctr sessions list                       # newest first
 cctr sessions list --format table --limit 10
 cctr sessions list --local               # only sessions run in $PWD
+cctr sessions list --fields sid,cwd      # only these keys, in this order
 cctr sessions latest --format id         # bare id, for $(...); latest = most recently modified file
-cctr sessions get <id|prefix|latest>     # one session's metadata
+cctr sessions get <id|prefix|sid|latest> # one session's metadata; sid = 6-char hash of the id
 cctr sessions records <id>               # the raw transcript, NDJSON
 cctr path <id>                           # the cwd it ran in, for cd "$(cctr path latest)"
 cctr meta                                # what this cctr knows about itself

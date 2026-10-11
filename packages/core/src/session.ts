@@ -1,6 +1,7 @@
 import { basename } from "node:path";
 import type { FileEntry } from "./discover";
 import { readRecords } from "./records";
+import { sidOf } from "./sid";
 import { type Record, type SessionMeta, emptyUsage } from "./types";
 
 /** Aggregate one session file into its SessionMeta in a single streaming pass. */
@@ -37,8 +38,10 @@ type UsageRaw = NonNullable<NonNullable<Record["message"]>["usage"]>;
 type FoldState = { models: Set<string>; usageById: Map<string, UsageRaw>; untitledUsage: UsageRaw[] };
 
 function emptyMeta(entry: FileEntry, host: string): SessionMeta {
+  const id = basename(entry.file, ".jsonl");
   return {
-    id: basename(entry.file, ".jsonl"),
+    id,
+    sid: sidOf(id),
     file: entry.file,
     host,
     cwd: null,
