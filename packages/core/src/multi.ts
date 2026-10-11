@@ -1,3 +1,5 @@
+import { AmbiguousIdError } from "./discover";
+import { isSid } from "./sid";
 import type { Source } from "./source";
 import type { Record, SessionFilter, SessionMeta } from "./types";
 
@@ -35,14 +37,16 @@ export class MultiSource {
   }
 
   async *readSession(id: string): AsyncGenerator<Record> {
-    const { source } = await this.locate(id);
-    if (source) yield* source.readSession(splitHost(id).id);
+    const { source, meta } = await this.locate(id);
+    // the id the host resolved to: a host that cannot resolve a sid itself can still read by id
+    if (source && meta) yield* source.readSession(meta.id);
   }
 
   private async locate(id: string): Promise<{ source: Source | null; meta: SessionMeta | null }> {
     const { id: bare } = splitHost(id);
     const sources = this.pick(id);
     const results = await Promise.allSettled(sources.map((s) => s.getSession(bare)));
+    if (isSid(bare)) return locateSid(bare, sources, results);
     const errors: HostError[] = [];
     let best: { source: Source; meta: SessionMeta } | null = null;
     for (let i = 0; i < results.length; i++) {
@@ -94,6 +98,44 @@ export class HostsUnreachableError extends Error {
 export function splitHost(id: string): { host: string | null; id: string } {
   const i = id.indexOf(":");
   return i > 0 ? { host: id.slice(0, i), id: id.slice(i + 1) } : { host: null, id };
+}
+
+/**
+ * A sid is a hash, so unlike a prefix it can name sessions on two hosts at once;
+ * every host is checked and two hits are refused. A host that answered "not found"
+ * may be a cctr that predates sids, so its listing is hashed here before giving up.
+ */
+async function locateSid(
+  sid: string,
+  sources: Source[],
+  results: PromiseSettledResult<SessionMeta | null>[],
+): Promise<{ source: Source | null; meta: SessionMeta | null }> {
+  const errors: HostError[] = [];
+  let hits: { source: Source; meta: SessionMeta }[] = [];
+  const answered: Source[] = [];
+  results.forEach((r, i) => {
+    const source = sources[i]!;
+    if (r.status === "rejected") errors.push({ host: source.host, error: errMsg(r.reason, source.host) });
+    else if (r.value) hits.push({ source, meta: r.value });
+    else answered.push(source);
+  });
+  if (hits.length === 0) {
+    const listed = await Promise.allSettled(answered.map((s) => s.listSessions()));
+    listed.forEach((r, i) => {
+      const source = answered[i]!;
+      if (r.status === "rejected") errors.push({ host: source.host, error: errMsg(r.reason, source.host) });
+      else hits.push(...r.value.filter((m) => m.sid === sid).map((meta) => ({ source, meta })));
+    });
+  }
+  hits = hits.filter((h, i) => hits.findIndex((o) => o.source === h.source && o.meta.id === h.meta.id) === i);
+  if (hits.length > 1)
+    throw new AmbiguousIdError(
+      sid,
+      hits.map((h) => `${h.source.host}:${h.meta.id}`),
+    );
+  if (hits[0]) return hits[0];
+  if (errors.length) throw new HostsUnreachableError(errors);
+  return { source: null, meta: null };
 }
 
 /** Remote errors already name their host; the HostError carries it separately, so drop the prefix. */

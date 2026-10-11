@@ -107,7 +107,7 @@ describe("--fields", () => {
         "\n" +
         JSON.stringify({
           type: "last-prompt",
-          lastPrompt: "a last prompt that is well over forty-four characters long, kept whole",
+          lastPrompt: "a last prompt that is well over forty-four characters long,\nkept whole",
         }) +
         "\n",
     );
@@ -117,6 +117,8 @@ describe("--fields", () => {
     expect(lines[0]).toMatch(/^cwd\s+lastPrompt$/);
     expect(lines[2]).toContain(longCwd);
     expect(lines[2]).toContain("kept whole");
+    // a line break inside a cell must not start a new row
+    expect(lines).toHaveLength(3);
     expect(r.out).not.toContain("…");
   });
 });

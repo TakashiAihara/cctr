@@ -291,3 +291,41 @@ describe("machineId", () => {
     expect((await src.meta()).host).toBe(machineId());
   });
 });
+
+describe("sid across hosts", () => {
+  const { AmbiguousIdError } = require("../src") as typeof import("../src");
+
+  test("a host that cannot resolve a sid itself is listed and hashed; the read then goes by id", async () => {
+    const id = "aaaaaaaa-0000-4000-8000-000000000001";
+    const old = fake("old", [meta(id, "old", "2026-09-01T00:00:00Z")]);
+    const m = new MultiSource([old]);
+    expect((await m.getSession("EOMGKY"))?.id).toBe(id);
+    const got: unknown[] = [];
+    for await (const r of m.readSession("EOMGKY")) got.push((r.raw as { from: string }).from);
+    expect(got).toEqual(["old"]);
+  });
+
+  test("one sid on two hosts is ambiguous, not the first host's", async () => {
+    const one = fake("one", [meta("00000320-0000-4000-8000-000000000000", "one", "2026-09-01T00:00:00Z")]);
+    const two = fake("two", [meta("00003fab-0000-4000-8000-000000000000", "two", "2026-09-02T00:00:00Z")]);
+    await expect(new MultiSource([one, two]).getSession("MGHMVI")).rejects.toThrow(AmbiguousIdError);
+    expect((await new MultiSource([one]).getSession("MGHMVI"))?.host).toBe("one");
+  });
+
+  test("hosts that resolve the sid themselves are all asked, so a collision still shows", async () => {
+    const hashing = (host: string, id: string) => {
+      const f = fake(host, [meta(id, host, "2026-09-01T00:00:00Z")]);
+      const all = f.listSessions.bind(f);
+      f.getSession = async (q) => (await all()).find((s) => s.sid === q) ?? null;
+      f.listSessions = async () => {
+        throw new Error("listed although the host answered");
+      };
+      return f;
+    };
+    const m = new MultiSource([
+      hashing("one", "00000320-0000-4000-8000-000000000000"),
+      hashing("two", "00003fab-0000-4000-8000-000000000000"),
+    ]);
+    await expect(m.getSession("MGHMVI")).rejects.toThrow(/one:00000320.*two:00003fab/);
+  });
+});

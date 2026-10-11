@@ -87,16 +87,13 @@ export function registerSessions(program: Command): void {
 /** A sid is a name people read out loud, so a miss on one says which hosts were asked. */
 function notFound(src: MultiSource, id: string): CliError {
   const { id: bare } = splitHost(id);
-  if (isSid(bare))
-    return new CliError(
-      `no session hashes to sid ${bare} on: ${hosts(src)} (a remote whose cctr predates sids cannot match one)`,
-      EXIT_NOT_FOUND,
-    );
+  if (isSid(bare)) return new CliError(`no session hashes to sid ${bare} on: ${hosts(src, id)}`, EXIT_NOT_FOUND);
   return new CliError(`session not found: ${id}`, EXIT_NOT_FOUND);
 }
 
-function hosts(src: MultiSource): string {
-  return src.sources.map((s) => s.host).join(", ");
+/** The hosts actually asked: a `host:` on the id narrows `--host` to that one. */
+function hosts(src: MultiSource, id: string): string {
+  return splitHost(id).host ?? src.sources.map((s) => s.host).join(", ");
 }
 
 function row(m: SessionMeta): string[] {
