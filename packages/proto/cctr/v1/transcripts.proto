@@ -21,6 +21,11 @@ service TranscriptService {
   // The records of one session as they are on disk, one JSONL line each.
   // Streamed: sessions of tens of megabytes exist.
   rpc ReadRecords(ReadRecordsRequest) returns (stream ReadRecordsResponse);
+
+  // Sessions whose transcript text matches a query, newest first, one message
+  // per session. The host scans its own files, so the transcripts never cross
+  // the network; only the hits do.
+  rpc Search(SearchRequest) returns (stream SearchResponse);
 }
 
 message GetMetaRequest {}
@@ -102,4 +107,52 @@ message ReadRecordsRequest {
 // parser as a local file.
 message ReadRecordsResponse {
   string line = 1;
+}
+
+message SearchRequest {
+  // Matched as a substring of each content block, case-insensitively.
+  string query = 1;
+  // The query is a JavaScript RegExp source; an uncompilable one is InvalidArgument.
+  bool regex = 2;
+  // Compare case-sensitively; without it a regex gets the "i" flag.
+  bool case_sensitive = 3;
+  // "user", "assistant", or empty for both sides; anything else is InvalidArgument.
+  string role = 4;
+  // Also search assistant thinking blocks.
+  bool thinking = 5;
+  // Also search assistant tool_use blocks.
+  bool tools = 6;
+  // Chars kept either side of the match in an excerpt; unset means the default of 60.
+  optional uint32 context = 7;
+  // Hits kept per session; total still counts them all. 0 means every hit.
+  uint32 hits_per_session = 8;
+  // Sessions returned; 0 means no limit.
+  uint32 limit = 9;
+  // One session: an id, a unique prefix, or `latest`.
+  string session = 10;
+  // Only sessions whose cwd is exactly this path.
+  string cwd = 11;
+  // Only sessions with a record at or after this time.
+  google.protobuf.Timestamp since = 12;
+}
+
+// One matching block of one record.
+message SearchHit {
+  // uuid of the record; empty when the record has none.
+  string uuid = 1;
+  // timestamp of the record, verbatim; empty when the record has none.
+  string ts = 2;
+  // "user" or "assistant".
+  string role = 3;
+  // "text", "thinking" or "tool_use".
+  string kind = 4;
+  // The match with context chars either side, whitespace collapsed.
+  string excerpt = 5;
+}
+
+message SearchResponse {
+  Session session = 1;
+  // Matching blocks in the session, whether or not hits kept them all.
+  uint64 total = 2;
+  repeated SearchHit hits = 3;
 }

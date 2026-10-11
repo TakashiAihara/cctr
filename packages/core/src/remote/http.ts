@@ -7,12 +7,13 @@ import {
   GetSessionRequestSchema,
   ListSessionsRequestSchema,
   ReadRecordsRequestSchema,
+  SearchRequestSchema,
   TranscriptService,
 } from "@cctr/proto/cctr/v1/transcripts_pb";
 import { parseLine } from "../records";
 import type { Source, SourceMeta } from "../source";
-import type { Record, SessionFilter, SessionMeta } from "../types";
-import { toMeta } from "../wire";
+import type { Record, SearchHit, SearchQuery, SessionFilter, SessionHits, SessionMeta } from "../types";
+import { num, toMeta } from "../wire";
 
 /** Narrower than `typeof fetch` so tests can hand in a Hono app's fetch. */
 export type FetchLike = (input: string | URL | globalThis.Request, init?: RequestInit) => Promise<Response>;
@@ -82,6 +83,43 @@ export class HttpSource implements Source {
       }
     } catch (e) {
       if (e instanceof ConnectError && e.code === Code.NotFound) return;
+      throw this.remoteError(e);
+    }
+  }
+
+  async *search(q: SearchQuery): AsyncGenerator<SessionHits> {
+    try {
+      for await (const res of this.client.search(
+        create(SearchRequestSchema, {
+          query: q.query,
+          regex: q.regex,
+          caseSensitive: q.caseSensitive,
+          role: q.role ?? "",
+          thinking: q.thinking,
+          tools: q.tools,
+          context: q.context,
+          hitsPerSession: q.hitsPerSession ?? 0,
+          limit: q.limit ?? 0,
+          session: q.session ?? "",
+          cwd: q.cwd ?? "",
+          since: q.since ? timestampFromDate(new Date(q.since)) : undefined,
+        }),
+      )) {
+        if (!res.session) continue;
+        yield {
+          session: toMeta(res.session, this.host),
+          total: num(res.total, "total"),
+          hits: res.hits.map((h) => ({
+            // proto3 has no null for scalars, so an absent uuid or timestamp is an empty string
+            uuid: h.uuid || null,
+            ts: h.ts || null,
+            role: h.role as SearchHit["role"],
+            kind: h.kind as SearchHit["kind"],
+            excerpt: h.excerpt,
+          })),
+        };
+      }
+    } catch (e) {
       throw this.remoteError(e);
     }
   }

@@ -2,12 +2,14 @@ import { create } from "@bufbuild/protobuf";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { Code, ConnectError, type ServiceImpl, createConnectRouter } from "@connectrpc/connect";
 import { createFetchHandler } from "@connectrpc/connect/protocol";
-import { type Source, toWire } from "@cctr/core";
+import { InvalidRegexError, type SearchQuery, type Source, toWire } from "@cctr/core";
 import {
   GetMetaResponseSchema,
   GetSessionResponseSchema,
   ListSessionsResponseSchema,
   ReadRecordsResponseSchema,
+  SearchHitSchema,
+  SearchResponseSchema,
   TranscriptService,
 } from "@cctr/proto/cctr/v1/transcripts_pb";
 import { Hono } from "hono";
@@ -93,6 +95,44 @@ export function transcriptImpl(source: Source): ServiceImpl<typeof TranscriptSer
         yield create(ReadRecordsResponseSchema, { line: JSON.stringify(r.raw) });
       }
     },
+
+    async *search(req) {
+      const q: SearchQuery = {
+        query: req.query,
+        regex: req.regex,
+        caseSensitive: req.caseSensitive,
+        role: roleOf(req.role),
+        thinking: req.thinking,
+        tools: req.tools,
+        context: req.context,
+        hitsPerSession: req.hitsPerSession || undefined,
+        limit: req.limit || undefined,
+        session: req.session || undefined,
+        cwd: req.cwd || undefined,
+        since: req.since ? timestampDate(req.since).toISOString() : undefined,
+      };
+      try {
+        for await (const s of source.search(q)) {
+          yield create(SearchResponseSchema, {
+            session: toWire(s.session),
+            total: BigInt(s.total),
+            hits: s.hits.map((h) =>
+              create(SearchHitSchema, {
+                uuid: h.uuid ?? "",
+                ts: h.ts ?? "",
+                role: h.role,
+                kind: h.kind,
+                excerpt: h.excerpt,
+              }),
+            ),
+          });
+        }
+      } catch (e) {
+        // the query is the caller's, so a regex that will not compile is theirs to fix
+        if (e instanceof InvalidRegexError) throw new ConnectError(e.message, Code.InvalidArgument);
+        throw e;
+      }
+    },
   };
 }
 
@@ -105,4 +145,11 @@ function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
   let diff = a.length ^ b.length;
   for (let i = 0; i < a.length; i++) diff |= a[i]! ^ (b[i] ?? 0);
   return diff === 0;
+}
+
+/** Empty is both sides; anything else that is not a side is the caller's mistake, not a wider search. */
+function roleOf(r: string): SearchQuery["role"] {
+  if (r === "") return undefined;
+  if (r === "user" || r === "assistant") return r;
+  throw new ConnectError(`unknown role: ${r}`, Code.InvalidArgument);
 }

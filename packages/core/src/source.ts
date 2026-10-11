@@ -1,8 +1,9 @@
 import { hostname } from "node:os";
-import { listSessionFiles, projectsDir, resolveSessionFile } from "./discover";
+import { type FileEntry, listSessionFiles, projectsDir, resolveSessionFile } from "./discover";
 import { readRecords } from "./records";
+import { type Matcher, blockHits, compileMatcher, linePrefilter } from "./search";
 import { parseSession } from "./session";
-import type { Record, SessionFilter, SessionMeta } from "./types";
+import type { Record, SearchHit, SearchQuery, SessionFilter, SessionHits, SessionMeta } from "./types";
 
 /** What one machine's cctr answers about itself. Consumers key remotes on `host`. */
 export type SourceMeta = {
@@ -32,6 +33,7 @@ export type Source = {
   listSessions(filter?: SessionFilter): Promise<SessionMeta[]>;
   getSession(idOrLatest: string): Promise<SessionMeta | null>;
   readSession(idOrLatest: string): AsyncGenerator<Record>;
+  search(q: SearchQuery): AsyncGenerator<SessionHits>;
 };
 
 export type LocalSourceOptions = { host?: string; projectsDir?: string; version?: string };
@@ -85,6 +87,50 @@ export class LocalSource implements Source {
     if (!f) return;
     yield* readRecords(f.file);
   }
+
+  async *search(q: SearchQuery): AsyncGenerator<SessionHits> {
+    // compiled before any file is opened: an invalid regex is a caller error,
+    // not a session that happened to match nothing
+    const match = compileMatcher(q);
+    const keep = linePrefilter(q);
+    const sinceT = q.since ? Date.parse(q.since) : NaN;
+    const files = q.session
+      ? single(resolveSessionFile(q.session, listSessionFiles(this.dir)))
+      : listSessionFiles(this.dir);
+    let found = 0;
+    for (const f of files) {
+      if (!Number.isNaN(sinceT) && f.mtimeMs < sinceT - MTIME_SLACK_MS) break;
+      // most files do not hold the query at all; one read of the whole file rules them out
+      if (keep && !keep(await Bun.file(f.file).text())) continue;
+      const hits = await scanFile(f.file, q, match, keep);
+      if (hits.length === 0) continue;
+      const m = await parseSession(f, this.host);
+      if (q.cwd && m.cwd !== q.cwd) continue;
+      if (!Number.isNaN(sinceT) && !(m.lastTs && Date.parse(m.lastTs) >= sinceT)) continue;
+      yield {
+        session: m,
+        total: hits.length,
+        hits: q.hitsPerSession ? hits.slice(0, q.hitsPerSession) : hits,
+      };
+      if (q.limit && ++found >= q.limit) return;
+    }
+  }
+}
+
+function single(f: FileEntry | null): FileEntry[] {
+  return f ? [f] : [];
+}
+
+/** One streaming pass over a file, collecting the hits it holds. */
+async function scanFile(
+  file: string,
+  q: SearchQuery,
+  match: Matcher,
+  keep: ((line: string) => boolean) | undefined,
+): Promise<SearchHit[]> {
+  const out: SearchHit[] = [];
+  for await (const rec of readRecords(file, keep)) out.push(...blockHits(rec, q, match));
+  return out;
 }
 
 /** What this machine is called across the fleet: hostname unless CCX_MACHINE says otherwise (ccx's setting, not a cctr one). */
