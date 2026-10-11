@@ -53,7 +53,8 @@ describe("zsh", () => {
   const z = script("zsh");
 
   test("parses, and the root _arguments knows the global options", () => {
-    expect(Bun.spawnSync(["zsh", "-n"], { stdin: new TextEncoder().encode(z) }).exitCode).toBe(0);
+    // CI's image has no zsh; the syntax check runs where one is installed
+    if (Bun.which("zsh")) expect(Bun.spawnSync(["zsh", "-n"], { stdin: new TextEncoder().encode(z) }).exitCode).toBe(0);
     const root = z.slice(z.indexOf("_arguments -C"), z.indexOf("'1: :->cmd'"));
     expect(root).toContain("'--host[");
     expect(root).toContain("'--format[output format]:value:(json table id)'");
