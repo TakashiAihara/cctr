@@ -1,180 +1,76 @@
 import { describe, expect, test } from "bun:test";
-import { Command, Option } from "commander";
-import { buildBashCompletion, buildFishCompletion, buildZshCompletion, flattenCommands } from "../src/completion";
+import { join } from "node:path";
 
-/** Build a tiny commander program shaped like the real cctr tree so we can
- *  unit-test the generators without dragging in the full CLI surface. */
-function makeProgram(): Command {
-  const program = new Command();
-  program.name("xcli").description("test cli");
+const CLI = join(import.meta.dir, "..", "src", "index.ts");
+const script = (shell: string) => Bun.spawnSync(["bun", CLI, "completion", shell]).stdout.toString();
+const bashScript = script("bash");
 
-  // Top-level leaf with a few options including a choices option.
-  program
-    .command("stats")
-    .description("aggregate stats")
-    .option("--by <key>", "group by key", "session")
-    .option("--local", "only sessions whose cwd === current dir")
-    .addOption(new Option("--mode <m>", "mode").choices(["a", "b"]).default("a"));
-
-  // Top-level leaf with no options.
-  program.command("ping").description("ping");
-
-  // Top-level with nested subcommands.
-  const sessions = program.command("sessions").description("sessions group");
-  sessions.command("list").description("list sessions").option("--json", "machine-readable output");
-  sessions.command("latest").description("most recent session id").option("--json", "machine-readable output");
-
-  return program;
+/** What bash offers for `line` with the cursor at its end (a trailing space starts a new word). */
+function bash(line: string): string[] {
+  const words = line.split(" ");
+  const p = Bun.spawnSync(
+    [
+      "bash",
+      "--norc",
+      "-c",
+      'source /dev/stdin; COMP_WORDS=("$@"); COMP_CWORD=$(($# - 1)); _cctr; printf "%s\\n" "${COMPREPLY[@]}"',
+      "x",
+      ...words,
+    ],
+    {
+      stdin: new TextEncoder().encode(bashScript),
+    },
+  );
+  return p.stdout.toString().split("\n").filter(Boolean).sort();
 }
 
-describe("flattenCommands", () => {
-  test("walks all non-root subcommands with full paths", () => {
-    const cmds = flattenCommands(makeProgram());
-    const paths = cmds.map((c) => c.path.join(" ")).sort();
-    expect(paths).toEqual(["ping", "sessions", "sessions latest", "sessions list", "stats"]);
+describe("bash", () => {
+  test("commands and subcommands, with or without global options before them", () => {
+    expect(bash("cctr se")).toEqual(["sessions"]);
+    expect(bash("cctr sessions l")).toEqual(["latest", "list"]);
+    expect(bash("cctr --host all se")).toEqual(["sessions"]);
+    expect(bash("cctr --host all sessions l")).toEqual(["latest", "list"]);
+    expect(bash("cctr --format table sessions --host all l")).toEqual(["latest", "list"]);
   });
 
-  test("captures option flag, description, choices, takesValue", () => {
-    const cmds = flattenCommands(makeProgram());
-    const stats = cmds.find((c) => c.path.join(" ") === "stats")!;
-    const by = stats.options.find((o) => o.long === "--by")!;
-    expect(by.takesValue).toBe(true);
-    expect(by.choices).toEqual([]);
-    const mode = stats.options.find((o) => o.long === "--mode")!;
-    expect(mode.takesValue).toBe(true);
-    expect(mode.choices).toEqual(["a", "b"]);
-    const local = stats.options.find((o) => o.long === "--local")!;
-    expect(local.takesValue).toBe(false);
+  test("options of the command at hand, global ones included, wherever they sit", () => {
+    expect(bash("cctr sessions list --l")).toEqual(["--limit", "--local"]);
+    expect(bash("cctr --host all sessions list --l")).toEqual(["--limit", "--local"]);
+    expect(bash("cctr meta --ho")).toEqual(["--host"]);
+    expect(bash("cctr --")).toEqual(["--format", "--help", "--host", "--version"]);
+    // `list` under remote is not sessions list
+    expect(bash("cctr remote list --l")).toEqual([]);
   });
 
-  test("subcommands array reflects direct children only", () => {
-    const cmds = flattenCommands(makeProgram());
-    const sessions = cmds.find((c) => c.path.join(" ") === "sessions")!;
-    expect(sessions.subcommands.sort()).toEqual(["latest", "list"]);
-    const list = cmds.find((c) => c.path.join(" ") === "sessions list")!;
-    expect(list.subcommands).toEqual([]);
+  test("option values: choices where there are any, the shell's filenames otherwise", () => {
+    expect(bash("cctr --format t")).toEqual(["table"]);
+    expect(bash("cctr sessions list --cwd ")).toEqual([]);
+    expect(bashScript).toContain("complete -o default -F _cctr cctr");
   });
 });
 
-describe("buildBashCompletion", () => {
-  const out = buildBashCompletion(flattenCommands(makeProgram()), "xcli");
+describe("zsh", () => {
+  const z = script("zsh");
 
-  test("declares the completion function and registers it", () => {
-    expect(out).toContain("_xcli() {");
-    expect(out).toContain("complete -F _xcli xcli");
-  });
-
-  test("doesn't ship a dead `prev` variable", () => {
-    // Reviewer flagged: `prev` was captured but never used.
-    expect(out).not.toContain("prev=");
-  });
-
-  test("offers top-level subcommands in alphabetical order", () => {
-    expect(out).toMatch(/COMPREPLY=\( \$\(compgen -W "ping sessions stats --help --version" -- /);
-  });
-
-  test("dispatches sessions subcommands separately", () => {
-    expect(out).toContain(`"sessions"`);
-    expect(out).toContain(`latest list`);
-  });
-
-  test("emits per-command option lists", () => {
-    expect(out).toContain(`stats) opts="--by --local --mode --help" ;;`);
-    expect(out).toContain(`ping) opts=" --help" ;;`);
-    expect(out).toContain(`list) opts="--json --help" ;;`);
+  test("parses, and the root _arguments knows the global options", () => {
+    expect(Bun.spawnSync(["zsh", "-n"], { stdin: new TextEncoder().encode(z) }).exitCode).toBe(0);
+    const root = z.slice(z.indexOf("_arguments -C"), z.indexOf("'1: :->cmd'"));
+    expect(root).toContain("'--host[");
+    expect(root).toContain("'--format[output format]:value:(json table id)'");
   });
 });
 
-describe("buildZshCompletion", () => {
-  const out = buildZshCompletion(flattenCommands(makeProgram()), "xcli");
+describe("fish", () => {
+  const f = script("fish");
 
-  test("starts with the compdef header", () => {
-    expect(out.split("\n")[0]).toBe("#compdef xcli");
-  });
-
-  test("ends with an explicit compdef call so eval-on-init also wires up", () => {
-    // `source <(cctr completion zsh)` won't honor the `#compdef` directive
-    // (that's compsys-autoload-only); the trailing `compdef` is required for
-    // the source-into-shell install path to actually register.
-    expect(out).toContain("compdef _xcli xcli");
-    expect(out).not.toMatch(/^_xcli "\$@"\s*$/m);
-  });
-
-  test("lists top-level subcommands with descriptions, sorted alphabetically", () => {
-    expect(out).toContain(`'stats:aggregate stats'`);
-    expect(out).toContain(`'sessions:sessions group'`);
-    expect(out).toContain(`'ping:ping'`);
-    expect(out.indexOf(`'ping:`)).toBeLessThan(out.indexOf(`'sessions:`));
-    expect(out.indexOf(`'sessions:`)).toBeLessThan(out.indexOf(`'stats:`));
-  });
-
-  test("emits choice completion for --mode", () => {
-    expect(out).toContain(`'--mode[mode]:value:(a b)'`);
-  });
-
-  test("emits boolean vs value-taking option distinction", () => {
-    expect(out).toContain(`'--local[only sessions whose cwd === current dir]'`);
-    expect(out).toContain(`'--by[group by key]:value:'`);
-  });
-
-  test("handles a no-option subcommand with _message", () => {
-    expect(out).toContain(`_message 'no options'`);
-  });
-
-  test("escapes single-quote in descriptions via '\\'' instead of dropping", () => {
-    const program = new Command();
-    program.name("xcli");
-    program.command("foo").description("it's a thing").option("--bar", "don't break me");
-    const z = buildZshCompletion(flattenCommands(program), "xcli");
-    expect(z).toContain(`'foo:it'\\''s a thing'`);
-    expect(z).toContain(`'--bar[don'\\''t break me]'`);
-  });
-
-  test("escapes ] in description so it doesn't close the bracketed spec early", () => {
-    const program = new Command();
-    program.name("xcli");
-    program.command("foo").option("--baz", "label [closed]");
-    const z = buildZshCompletion(flattenCommands(program), "xcli");
-    expect(z).toContain(`'--baz[label [closed\\]]'`);
-  });
-
-  test("escapes single-quote inside choices", () => {
-    const program = new Command();
-    program.name("xcli");
-    program.command("foo").addOption(new Option("--m <m>", "mode").choices(["a", "b'c"]));
-    const z = buildZshCompletion(flattenCommands(program), "xcli");
-    expect(z).toContain(`'--m[mode]:value:(a b'\\''c)'`);
+  test("global options are offered everywhere; a subcommand's options only under its parent", () => {
+    expect(f).toContain("complete -c cctr -l host -d");
+    expect(f).toMatch(/\(__cctr_pos\)\[1\] = remote; and test \(__cctr_pos\)\[2\] = add' -l url/);
+    expect(f).toMatch(/\(__cctr_pos\)\[1\] = sessions; and test \(__cctr_pos\)\[2\] = list' -l limit/);
+    expect(f).not.toMatch(/\(__cctr_pos\)\[1\] = remote; and test \(__cctr_pos\)\[2\] = list' -l limit/);
   });
 });
 
-describe("buildFishCompletion", () => {
-  const out = buildFishCompletion(flattenCommands(makeProgram()), "xcli");
-
-  test("emits use_subcommand entries for top level, sorted alphabetically", () => {
-    expect(out).toContain(`complete -c xcli -n '__fish_use_subcommand' -a ping -d 'ping'`);
-    expect(out).toContain(`complete -c xcli -n '__fish_use_subcommand' -a stats -d 'aggregate stats'`);
-    expect(out.indexOf(`-a ping`)).toBeLessThan(out.indexOf(`-a sessions`));
-    expect(out.indexOf(`-a sessions`)).toBeLessThan(out.indexOf(`-a stats`));
-  });
-
-  test("emits seen_subcommand_from entries for nested sessions list", () => {
-    expect(out).toContain(`-a list -d 'list sessions'`);
-  });
-
-  test("emits options gated by the right subcommand context", () => {
-    expect(out).toContain(`complete -c xcli -n '__fish_seen_subcommand_from stats' -l by -d 'group by key' -r`);
-    expect(out).toContain(`complete -c xcli -n '__fish_seen_subcommand_from stats' -l mode -d 'mode' -x -a 'a b'`);
-  });
-
-  test("conditions go through single-quote escaping so a `'` in a subcommand name doesn't break the script", () => {
-    // Subcommand names from commander are usually ASCII, but option conditions
-    // are constructed strings — defensively quote them.
-    const program = new Command();
-    program.name("xcli");
-    program.command("foo").option("--bar", "desc with ' quote");
-    const f = buildFishCompletion(flattenCommands(program), "xcli");
-    // The condition itself is plain (no apostrophe), but the description has
-    // one and must be escaped fish-style as `\'`.
-    expect(f).toContain(`-d 'desc with \\' quote'`);
-  });
+test("an unknown shell is exit 2", () => {
+  expect(Bun.spawnSync(["bun", CLI, "completion", "pwsh"]).exitCode).toBe(2);
 });

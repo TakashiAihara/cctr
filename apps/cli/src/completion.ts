@@ -1,314 +1,291 @@
-// Shell-completion script generator for the cctr CLI.
-//
-// Static completion only — we enumerate the commander program tree once and
-// emit a script that knows the command/option surface. Dynamic completion
-// (session ids, file paths) is intentionally out of scope; that lives behind
-// each shell's `_files` / glob primitives if/when we extend later.
+// Shell completion scripts generated from the commander tree: commands, subcommands,
+// options and option choices. Values without choices fall back to the shell's own
+// filename completion.
 
-import { type Command } from "commander";
+import type { Command, Option } from "commander";
 
 export type OptionInfo = {
   /** Long flag including leading dashes, e.g. "--source". null if short-only. */
   long: string | null;
   /** Short flag, e.g. "-h". null if not defined. */
   short: string | null;
-  /** Human-readable description (single line; may be empty). */
   description: string;
-  /** Allowed values when `.choices([...])` is used; empty array otherwise. */
+  /** Allowed values when `.choices([...])` is used; empty otherwise. */
   choices: string[];
-  /** True for `--foo <bar>` / `--foo [bar]` style; false for boolean flags. */
+  /** True for `--foo <bar>` / `--foo [bar]`; false for boolean flags. */
   takesValue: boolean;
 };
 
 export type CommandInfo = {
   /** Path from program root, e.g. ["sessions", "list"]. Never empty. */
   path: string[];
-  /** Subcommand summary line (commander `.description()`). */
   description: string;
   options: OptionInfo[];
-  /** Names of direct child subcommands (sorted), so generators can branch on depth. */
+  /** Names of direct child subcommands, sorted. */
   subcommands: string[];
 };
 
-/** Walk a commander Command tree into a flat list, skipping the root program itself. */
-export function flattenCommands(root: Command): CommandInfo[] {
-  const out: CommandInfo[] = [];
-  walk(root, [], out);
-  return out;
+/** Everything a generator needs: the commands below the root and the root's own options. */
+export type CompletionSpec = { program: string; globals: OptionInfo[]; commands: CommandInfo[] };
+
+export function completionSpec(root: Command, program = root.name()): CompletionSpec {
+  const commands: CommandInfo[] = [];
+  walk(root, [], commands);
+  return { program, globals: root.options.map(toOptionInfo), commands };
 }
 
 function walk(cmd: Command, prefix: string[], out: CommandInfo[]): void {
-  // Root program (prefix empty) isn't a "subcommand"; only descend.
   if (prefix.length > 0) {
-    const subs = cmd.commands.map((c) => c.name()).sort();
     out.push({
       path: prefix,
       description: (cmd.description() || "").trim(),
       options: cmd.options.map(toOptionInfo),
-      subcommands: subs,
+      subcommands: cmd.commands.map((c) => c.name()).sort(),
     });
   }
-  for (const sub of cmd.commands) {
-    walk(sub, [...prefix, sub.name()], out);
-  }
+  for (const sub of cmd.commands) walk(sub, [...prefix, sub.name()], out);
 }
 
-export function toOptionInfo(o: unknown): OptionInfo {
-  // commander's Option fields are not formally typed via its public API surface,
-  // but the documented runtime shape is stable (long/short/description/argChoices/flags).
-  const opt = o as {
-    long?: string | null;
-    short?: string | null;
-    description?: string;
-    argChoices?: readonly string[];
-    flags?: string;
-  };
-  const flags = String(opt.flags ?? "");
+export function toOptionInfo(o: Option): OptionInfo {
   return {
-    long: opt.long ?? null,
-    short: opt.short ?? null,
-    description: (opt.description ?? "").trim(),
-    choices: Array.isArray(opt.argChoices) ? [...opt.argChoices] : [],
-    takesValue: /[<[]/.test(flags),
+    long: o.long ?? null,
+    short: o.short ?? null,
+    description: (o.description ?? "").trim(),
+    choices: o.argChoices ? [...o.argChoices] : [],
+    takesValue: o.required || o.optional,
   };
+}
+
+function flags(o: OptionInfo): string[] {
+  return [o.long, o.short].filter((f): f is string => !!f);
+}
+
+/** Every flag that consumes the next word, across the whole tree: those words are not subcommands. */
+function valueFlags(spec: CompletionSpec): string[] {
+  const all = [...spec.globals, ...spec.commands.flatMap((c) => c.options)];
+  return [...new Set(all.filter((o) => o.takesValue).flatMap(flags))].sort();
+}
+
+function choicesByFlag(spec: CompletionSpec): Map<string, string[]> {
+  const m = new Map<string, string[]>();
+  for (const o of [...spec.globals, ...spec.commands.flatMap((c) => c.options)])
+    if (o.choices.length) for (const f of flags(o)) m.set(f, o.choices);
+  return m;
+}
+
+function children(spec: CompletionSpec, parent: string): CommandInfo[] {
+  return spec.commands.filter((c) => c.path.length === 2 && c.path[0] === parent);
+}
+
+function topLevel(spec: CompletionSpec): CommandInfo[] {
+  return spec.commands.filter((c) => c.path.length === 1).sort((a, b) => a.path[0]!.localeCompare(b.path[0]!));
 }
 
 /**
- * All flag tokens for an option in a deterministic order: long first (the form
- * we surface in help), then short. Not alphabetical — sorting would push `-h`
- * ahead of `--help`, which is the less useful one to land on first.
+ * bash: the words before the cursor are reduced to positionals (options and the
+ * values of value-taking flags dropped), so global options may sit anywhere.
  */
-function flagTokens(opt: OptionInfo): string[] {
-  const t: string[] = [];
-  if (opt.long) t.push(opt.long);
-  if (opt.short) t.push(opt.short);
-  return t;
-}
-
-export function buildBashCompletion(cmds: CommandInfo[], programName = "cctr"): string {
-  const top = cmds
-    .filter((c) => c.path.length === 1)
-    .map((c) => c.path[0]!)
-    .sort();
-
-  // Per first-level subcommand: child subcommands (if any) and own options.
-  // Note: COMP_CWORD-eq-1/-eq-2 hardcoding below assumes a 2-level command tree
-  // (cctr top-level + one nested level under `sessions`). If a third level is
-  // ever introduced, extend the dispatch here.
-  const lines: string[] = [];
-  lines.push(`# bash completion for ${programName} — generated by \`${programName} completion bash\``);
-  lines.push(`_${programName}() {`);
-  lines.push(`  local cur`);
-  lines.push(`  cur="\${COMP_WORDS[COMP_CWORD]}"`);
-  lines.push(``);
-  lines.push(`  # Top-level subcommand`);
-  lines.push(`  if [[ $COMP_CWORD -eq 1 ]]; then`);
-  lines.push(`    COMPREPLY=( $(compgen -W "${top.join(" ")} --help --version" -- "$cur") )`);
-  lines.push(`    return`);
-  lines.push(`  fi`);
-  lines.push(``);
-
-  const oneLevel = cmds.filter((c) => c.path.length === 1);
-  for (const cmd of oneLevel) {
+export function buildBashCompletion(spec: CompletionSpec): string {
+  const p = spec.program;
+  const globals = spec.globals.flatMap(flags).join(" ");
+  const L: string[] = [];
+  L.push(`# bash completion for ${p}, generated by \`${p} completion bash\``);
+  L.push(`_${p}() {`);
+  L.push(`  local cur prev i w skip=0`);
+  L.push(`  cur="\${COMP_WORDS[COMP_CWORD]}"`);
+  L.push(`  prev="\${COMP_WORDS[COMP_CWORD-1]}"`);
+  L.push(`  local valopts=" ${valueFlags(spec).join(" ")} "`);
+  L.push(`  local -a pos=()`);
+  L.push(`  for ((i = 1; i < COMP_CWORD; i++)); do`);
+  L.push(`    w="\${COMP_WORDS[i]}"`);
+  L.push(`    if ((skip)); then skip=0; continue; fi`);
+  L.push(`    if [[ "$valopts" == *" $w "* ]]; then skip=1; continue; fi`);
+  L.push(`    [[ "$w" == -* ]] || pos+=("$w")`);
+  L.push(`  done`);
+  L.push(`  if [[ "$valopts" == *" $prev "* ]]; then`);
+  L.push(`    case "$prev" in`);
+  for (const [flag, choices] of choicesByFlag(spec))
+    L.push(`      ${flag}) COMPREPLY=( $(compgen -W "${choices.join(" ")}" -- "$cur") ) ;;`);
+  // nothing offered: `complete -o default` then completes filenames
+  L.push(`      *) COMPREPLY=() ;;`);
+  L.push(`    esac`);
+  L.push(`    return`);
+  L.push(`  fi`);
+  L.push(`  local opts="${globals} --help"`);
+  L.push(`  case "\${pos[0]:-}" in`);
+  L.push(`    "")`);
+  L.push(
+    `      [[ "$cur" == -* ]] || opts="${topLevel(spec)
+      .map((c) => c.path[0])
+      .join(" ")}" ;;`,
+  );
+  for (const cmd of topLevel(spec)) {
     const name = cmd.path[0]!;
-    if (cmd.subcommands.length > 0) {
-      lines.push(`  if [[ $COMP_CWORD -eq 2 && "\${COMP_WORDS[1]}" == "${name}" ]]; then`);
-      lines.push(`    COMPREPLY=( $(compgen -W "${cmd.subcommands.join(" ")} --help" -- "$cur") )`);
-      lines.push(`    return`);
-      lines.push(`  fi`);
+    if (cmd.subcommands.length === 0) {
+      L.push(`    ${name}) opts="$opts ${cmd.options.flatMap(flags).join(" ")}" ;;`);
+      continue;
     }
+    L.push(`    ${name})`);
+    L.push(`      case "\${pos[1]:-}" in`);
+    L.push(`        "") [[ "$cur" == -* ]] || opts="${cmd.subcommands.join(" ")}" ;;`);
+    for (const child of children(spec, name))
+      L.push(`        ${child.path[1]}) opts="$opts ${child.options.flatMap(flags).join(" ")}" ;;`);
+    L.push(`      esac`);
+    L.push(`      ;;`);
   }
+  L.push(`  esac`);
+  L.push(`  COMPREPLY=( $(compgen -W "$opts" -- "$cur") )`);
+  L.push(`}`);
+  L.push(`complete -o default -F _${p} ${p}`);
+  L.push(``);
+  return L.join("\n");
+}
 
-  lines.push(``);
-  lines.push(`  # Options for the currently-resolved command path`);
-  lines.push(`  if [[ "$cur" == -* ]]; then`);
-  lines.push(`    local opts=""`);
-  lines.push(`    case "\${COMP_WORDS[1]:-}" in`);
-  for (const cmd of oneLevel) {
+/** zsh: the root `_arguments` knows the global options, so `--host x` before the subcommand is consumed there. */
+export function buildZshCompletion(spec: CompletionSpec): string {
+  const p = spec.program;
+  const globals = spec.globals.map(zshSpec).filter(Boolean);
+  const L: string[] = [];
+  L.push(`#compdef ${p}`);
+  L.push(`# zsh completion for ${p}, generated by \`${p} completion zsh\``);
+  L.push(``);
+  L.push(`_${p}() {`);
+  L.push(`  local context state state_descr line`);
+  L.push(`  typeset -A opt_args`);
+  L.push(`  _arguments -C \\`);
+  for (const g of globals) L.push(`    ${g} \\`);
+  L.push(`    '1: :->cmd' \\`);
+  L.push(`    '*::arg:->args'`);
+  L.push(`  case $state in`);
+  L.push(`    cmd)`);
+  L.push(`      local -a top=(`);
+  for (const c of topLevel(spec)) L.push(`        '${c.path[0]}:${zshQuote(c.description)}'`);
+  L.push(`      )`);
+  L.push(`      _describe -t commands 'command' top`);
+  L.push(`      ;;`);
+  L.push(`    args)`);
+  L.push(`      case $words[1] in`);
+  for (const cmd of topLevel(spec)) {
     const name = cmd.path[0]!;
-    if (cmd.subcommands.length > 0) {
-      lines.push(`      ${name})`);
-      lines.push(`        case "\${COMP_WORDS[2]:-}" in`);
-      const children = cmds.filter((c) => c.path.length === 2 && c.path[0] === name);
-      for (const child of children) {
-        const childName = child.path[1]!;
-        const childOpts = child.options.flatMap(flagTokens).join(" ");
-        lines.push(`          ${childName}) opts="${childOpts} --help" ;;`);
-      }
-      lines.push(`        esac`);
-      lines.push(`        ;;`);
+    L.push(`        ${name})`);
+    if (cmd.subcommands.length === 0) {
+      zshLeaf([...cmd.options, ...spec.globals], L, "          ");
     } else {
-      const ownOpts = cmd.options.flatMap(flagTokens).join(" ");
-      lines.push(`      ${name}) opts="${ownOpts} --help" ;;`);
+      L.push(`          _arguments -C \\`);
+      for (const g of globals) L.push(`            ${g} \\`);
+      L.push(`            '1: :->sub' \\`);
+      L.push(`            '*::arg:->subargs'`);
+      L.push(`          case $state in`);
+      L.push(`            sub)`);
+      L.push(`              local -a subs=(`);
+      for (const ch of children(spec, name)) L.push(`                '${ch.path[1]}:${zshQuote(ch.description)}'`);
+      L.push(`              )`);
+      L.push(`              _describe -t commands 'subcommand' subs`);
+      L.push(`              ;;`);
+      L.push(`            subargs)`);
+      L.push(`              case $words[1] in`);
+      for (const ch of children(spec, name)) {
+        L.push(`                ${ch.path[1]})`);
+        zshLeaf([...ch.options, ...spec.globals], L, "                  ");
+        L.push(`                  ;;`);
+      }
+      L.push(`              esac`);
+      L.push(`              ;;`);
+      L.push(`          esac`);
     }
+    L.push(`          ;;`);
   }
-  lines.push(`    esac`);
-  lines.push(`    COMPREPLY=( $(compgen -W "$opts" -- "$cur") )`);
-  lines.push(`    return`);
-  lines.push(`  fi`);
-  lines.push(`}`);
-  lines.push(`complete -F _${programName} ${programName}`);
-  lines.push(``);
-  return lines.join("\n");
+  L.push(`      esac`);
+  L.push(`      ;;`);
+  L.push(`  esac`);
+  L.push(`}`);
+  L.push(``);
+  // the #compdef header wires a file on $fpath; this line wires `source <(...)`, which must come after compinit
+  L.push(`compdef _${p} ${p}`);
+  L.push(``);
+  return L.join("\n");
 }
 
-export function buildZshCompletion(cmds: CommandInfo[], programName = "cctr"): string {
-  const oneLevel = cmds.filter((c) => c.path.length === 1).sort((a, b) => a.path[0]!.localeCompare(b.path[0]!));
+function zshLeaf(options: OptionInfo[], L: string[], indent: string): void {
+  const specs = options.map(zshSpec).filter(Boolean);
+  // the trailing spec lets positionals (an id, a query) fall back to files instead of nothing
+  L.push(`${indent}_arguments \\`);
+  for (const s of specs) L.push(`${indent}  ${s} \\`);
+  L.push(`${indent}  '*:argument:_files'`);
+}
 
-  const lines: string[] = [];
-  lines.push(`#compdef ${programName}`);
-  lines.push(`# zsh completion for ${programName} — generated by \`${programName} completion zsh\``);
-  lines.push(``);
-  lines.push(`_${programName}() {`);
-  lines.push(`  local context state state_descr line`);
-  lines.push(`  typeset -A opt_args`);
-  lines.push(``);
-  lines.push(`  _arguments -C \\`);
-  lines.push(`    '1: :->cmd' \\`);
-  lines.push(`    '*::arg:->args'`);
-  lines.push(``);
-  lines.push(`  case $state in`);
-  lines.push(`    cmd)`);
-  lines.push(`      local -a top`);
-  lines.push(`      top=(`);
-  for (const c of oneLevel) {
-    lines.push(`        '${c.path[0]}:${zshEscape(c.description)}'`);
-  }
-  lines.push(`      )`);
-  lines.push(`      _describe -t commands 'subcommand' top`);
-  lines.push(`      ;;`);
-  lines.push(`    args)`);
-  lines.push(`      case $words[1] in`);
-  for (const cmd of oneLevel) {
+function zshSpec(o: OptionInfo): string {
+  const fl = flags(o);
+  if (fl.length === 0) return "";
+  const names = fl.length > 1 ? `{${fl.join(",")}}` : fl[0]!;
+  const desc = zshBracket(o.description);
+  const value = o.choices.length ? `:value:(${o.choices.join(" ")})` : o.takesValue ? ":value:_files" : "";
+  return fl.length > 1 ? `${names}'[${desc}]${value}'` : `'${names}[${desc}]${value}'`;
+}
+
+/** Inside single quotes: a quote closes and reopens. */
+function zshQuote(s: string): string {
+  return s.replace(/'/g, "'\\''").replace(/:/g, "\\:");
+}
+
+/** Inside an `_arguments` description: `]` would end it. */
+function zshBracket(s: string): string {
+  return zshQuote(s).replace(/\]/g, "\\]");
+}
+
+/**
+ * fish: conditions read the positionals the same way as bash (value flags and
+ * their values dropped), so `remote list` and `sessions list` do not share options.
+ */
+export function buildFishCompletion(spec: CompletionSpec): string {
+  const p = spec.program;
+  const fn = `__${p}_pos`;
+  const L: string[] = [];
+  L.push(`# fish completion for ${p}, generated by \`${p} completion fish\``);
+  L.push(`function ${fn}`);
+  L.push(`  set -l toks (commandline -opc)`);
+  L.push(`  set -e toks[1]`);
+  L.push(`  set -l skip 0`);
+  L.push(`  for t in $toks`);
+  L.push(`    if test $skip = 1; set skip 0; continue; end`);
+  L.push(`    if contains -- $t ${valueFlags(spec).join(" ")}; set skip 1; continue; end`);
+  L.push(`    string match -q -- '-*' $t; or echo $t`);
+  L.push(`  end`);
+  L.push(`end`);
+  L.push(`complete -c ${p} -f`);
+  for (const o of spec.globals) L.push(fishOption(p, "", o));
+  for (const c of topLevel(spec))
+    L.push(`complete -c ${p} -n ${fishQ(`test (count (${fn})) -eq 0`)} -a ${c.path[0]} -d ${fishQ(c.description)}`);
+  for (const cmd of topLevel(spec)) {
     const name = cmd.path[0]!;
-    lines.push(`        ${name})`);
-    if (cmd.subcommands.length > 0) {
-      lines.push(`          _arguments -C \\`);
-      lines.push(`            '1: :->subcmd' \\`);
-      lines.push(`            '*::subargs:->subargs'`);
-      lines.push(`          case $state in`);
-      lines.push(`            subcmd)`);
-      lines.push(`              local -a subs`);
-      lines.push(`              subs=(`);
-      const children = cmds.filter((c) => c.path.length === 2 && c.path[0] === name);
-      for (const child of children) {
-        lines.push(`                '${child.path[1]}:${zshEscape(child.description)}'`);
-      }
-      lines.push(`              )`);
-      lines.push(`              _describe -t commands 'subcommand' subs`);
-      lines.push(`              ;;`);
-      lines.push(`            subargs)`);
-      lines.push(`              case $words[1] in`);
-      for (const child of children) {
-        const childName = child.path[1]!;
-        lines.push(`                ${childName})`);
-        emitZshOptionArgs(child.options, lines, "                  ");
-        lines.push(`                  ;;`);
-      }
-      lines.push(`              esac`);
-      lines.push(`              ;;`);
-      lines.push(`          esac`);
-    } else {
-      emitZshOptionArgs(cmd.options, lines, "          ");
+    const at1 = `test (count (${fn})) -ge 1; and test (${fn})[1] = ${name}`;
+    if (cmd.subcommands.length === 0) {
+      for (const o of cmd.options) L.push(fishOption(p, at1, o));
+      continue;
     }
-    lines.push(`          ;;`);
-  }
-  lines.push(`      esac`);
-  lines.push(`      ;;`);
-  lines.push(`  esac`);
-  lines.push(`}`);
-  lines.push(``);
-  // Wire `_cctr` as the completion handler for `cctr`. This works for both
-  // install paths: file-based (file goes in $fpath as `_cctr`, the `#compdef
-  // cctr` header above triggers zsh's compsys autoload) and eval-on-init
-  // (`source <(cctr completion zsh)` — where the header is just a comment
-  // and only this explicit compdef call wires it up).
-  lines.push(`compdef _${programName} ${programName}`);
-  lines.push(``);
-  return lines.join("\n");
-}
-
-function emitZshOptionArgs(options: OptionInfo[], lines: string[], indent: string): void {
-  if (options.length === 0) {
-    lines.push(`${indent}_message 'no options'`);
-    return;
-  }
-  lines.push(`${indent}_arguments \\`);
-  const tokens: string[] = [];
-  for (const opt of options) {
-    const flag = opt.long ?? opt.short;
-    if (!flag) continue;
-    const desc = zshEscape(opt.description);
-    if (opt.choices.length > 0) {
-      // Choice-aware completion: zsh syntax is `'--foo[desc]:label:(a b c)'`.
-      const choices = opt.choices.map(zshEscape).join(" ");
-      tokens.push(`'${flag}[${desc}]:value:(${choices})'`);
-    } else if (opt.takesValue) {
-      tokens.push(`'${flag}[${desc}]:value:'`);
-    } else {
-      tokens.push(`'${flag}[${desc}]'`);
+    for (const ch of children(spec, name)) {
+      L.push(
+        `complete -c ${p} -n ${fishQ(`test (count (${fn})) -eq 1; and test (${fn})[1] = ${name}`)} -a ${ch.path[1]} -d ${fishQ(ch.description)}`,
+      );
+      const at2 = `test (count (${fn})) -ge 2; and test (${fn})[1] = ${name}; and test (${fn})[2] = ${ch.path[1]}`;
+      for (const o of ch.options) L.push(fishOption(p, at2, o));
     }
   }
-  lines.push(tokens.map((t) => `${indent}  ${t}`).join(" \\\n"));
+  L.push(``);
+  return L.join("\n");
 }
 
-function zshEscape(s: string): string {
-  // Within a single-quoted zsh string `'...'`, a literal single quote is
-  // written as `'\''` (close, escape-quote, reopen). `]` ends a `'flag[desc]'`
-  // bracketed spec, so escape it. Other characters (incl. `[`) pass through.
-  return s.replace(/'/g, "'\\''").replace(/\]/g, "\\]");
-}
-
-export function buildFishCompletion(cmds: CommandInfo[], programName = "cctr"): string {
-  const oneLevel = cmds.filter((c) => c.path.length === 1).sort((a, b) => a.path[0]!.localeCompare(b.path[0]!));
-  const lines: string[] = [];
-  lines.push(`# fish completion for ${programName} — generated by \`${programName} completion fish\``);
-  lines.push(``);
-
-  // Top-level subcommands
-  for (const c of oneLevel) {
-    lines.push(`complete -c ${programName} -n '__fish_use_subcommand' -a ${c.path[0]} -d ${fishQ(c.description)}`);
-  }
-  lines.push(``);
-
-  // Nested subcommands and per-command options
-  for (const cmd of oneLevel) {
-    const name = cmd.path[0]!;
-    if (cmd.subcommands.length > 0) {
-      const children = cmds.filter((c) => c.path.length === 2 && c.path[0] === name);
-      for (const child of children) {
-        const childName = child.path[1]!;
-        const condition = `__fish_seen_subcommand_from ${name}; and not __fish_seen_subcommand_from ${cmd.subcommands.join(" ")}`;
-        lines.push(`complete -c ${programName} -n ${fishQ(condition)} -a ${childName} -d ${fishQ(child.description)}`);
-        for (const opt of child.options) {
-          lines.push(fishOptionLine(programName, `__fish_seen_subcommand_from ${childName}`, opt));
-        }
-      }
-    } else {
-      for (const opt of cmd.options) {
-        lines.push(fishOptionLine(programName, `__fish_seen_subcommand_from ${name}`, opt));
-      }
-    }
-  }
-  lines.push(``);
-  return lines.join("\n");
-}
-
-function fishOptionLine(programName: string, condition: string, opt: OptionInfo): string {
-  const parts = [`complete -c ${programName} -n ${fishQ(condition)}`];
-  if (opt.short) parts.push(`-s ${opt.short.replace(/^-/, "")}`);
-  if (opt.long) parts.push(`-l ${opt.long.replace(/^--/, "")}`);
-  parts.push(`-d ${fishQ(opt.description)}`);
-  if (opt.choices.length > 0) {
-    // -x = exclusive (option takes argument), -a = arguments to complete from.
-    parts.push(`-x -a ${fishQ(opt.choices.join(" "))}`);
-  } else if (opt.takesValue) {
-    parts.push(`-r`);
-  }
+function fishOption(p: string, condition: string, o: OptionInfo): string {
+  const parts = [`complete -c ${p}`];
+  if (condition) parts.push(`-n ${fishQ(condition)}`);
+  if (o.short) parts.push(`-s ${o.short.replace(/^-/, "")}`);
+  if (o.long) parts.push(`-l ${o.long.replace(/^--/, "")}`);
+  parts.push(`-d ${fishQ(o.description)}`);
+  if (o.choices.length) parts.push(`-x -a ${fishQ(o.choices.join(" "))}`);
+  else if (o.takesValue) parts.push(`-r -F`);
   return parts.join(" ");
 }
 
 function fishQ(s: string): string {
-  // Fish single-quoted: escape `\` and `'` only.
   return `'${s.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
 }

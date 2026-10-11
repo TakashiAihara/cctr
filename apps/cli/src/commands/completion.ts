@@ -1,11 +1,5 @@
 import type { Command } from "commander";
-import {
-  buildBashCompletion,
-  buildFishCompletion,
-  buildZshCompletion,
-  flattenCommands,
-  toOptionInfo,
-} from "../completion";
+import { buildBashCompletion, buildFishCompletion, buildZshCompletion, completionSpec } from "../completion";
 import { CliError } from "../output";
 
 const BUILDERS = { bash: buildBashCompletion, zsh: buildZshCompletion, fish: buildFishCompletion } as const;
@@ -26,14 +20,11 @@ Install (file-based):
 
 Install (eval on shell init):
   bash:   echo 'source <(cctr completion bash)' >> ~/.bashrc
-  zsh:    echo 'source <(cctr completion zsh)'  >> ~/.zshrc
+  zsh:    echo 'source <(cctr completion zsh)'  >> ~/.zshrc   # after compinit
   fish:   echo 'cctr completion fish | source'   >> ~/.config/fish/config.fish`,
     )
     .action((shell: string) => {
       if (!(shell in BUILDERS)) throw new CliError(`unsupported shell: ${shell} (expected bash, zsh, or fish)`, 2);
-      // --host / --format are accepted after the subcommand too, so every command offers them
-      const globals = program.options.map(toOptionInfo);
-      const cmds = flattenCommands(program).map((c) => ({ ...c, options: [...c.options, ...globals] }));
-      process.stdout.write(BUILDERS[shell as keyof typeof BUILDERS](cmds, "cctr"));
+      process.stdout.write(BUILDERS[shell as keyof typeof BUILDERS](completionSpec(program, "cctr")));
     });
 }

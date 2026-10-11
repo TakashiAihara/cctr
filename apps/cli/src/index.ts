@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { Command } from "commander";
+import { Command, Option } from "commander";
 import { registerAgent } from "./commands/agent";
 import { registerCompletion } from "./commands/completion";
 import { registerMeta } from "./commands/meta";
@@ -15,7 +15,11 @@ const program = new Command("cctr")
   .description("Claude Code transcripts: search, read, measure, and visualize them, across machines")
   .version(VERSION)
   .option("--host <spec>", "local (default), a remote name, all, or a comma list")
-  .option("--format <fmt>", "json (default), table, id, or ndjson (search)", "json")
+  .addOption(
+    new Option("--format <fmt>", "json, table, id (a bare id), or ndjson (search)")
+      .choices(["json", "table", "id"])
+      .default("json"),
+  )
   .showHelpAfterError()
   .configureOutput({ writeErr: (s) => process.stderr.write(s) });
 
