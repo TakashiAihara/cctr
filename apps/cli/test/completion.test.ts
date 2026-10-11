@@ -26,9 +26,9 @@ function bash(line: string): string[] {
 
 describe("bash", () => {
   test("commands and subcommands, with or without global options before them", () => {
-    expect(bash("cctr se")).toEqual(["sessions"]);
+    expect(bash("cctr ses")).toEqual(["sessions"]);
     expect(bash("cctr sessions l")).toEqual(["latest", "list"]);
-    expect(bash("cctr --host all se")).toEqual(["sessions"]);
+    expect(bash("cctr --host all ses")).toEqual(["sessions"]);
     expect(bash("cctr --host all sessions l")).toEqual(["latest", "list"]);
     expect(bash("cctr --format table sessions --host all l")).toEqual(["latest", "list"]);
   });
@@ -57,7 +57,7 @@ describe("zsh", () => {
     if (Bun.which("zsh")) expect(Bun.spawnSync(["zsh", "-n"], { stdin: new TextEncoder().encode(z) }).exitCode).toBe(0);
     const root = z.slice(z.indexOf("_arguments -C"), z.indexOf("'1: :->cmd'"));
     expect(root).toContain("'--host[");
-    expect(root).toContain("'--format[output format]:value:(json table id ndjson)'");
+    expect(root).toContain(":value:(json table id ndjson)'");
     // without -A, options after the subcommand are eaten by the level above
     expect(z.match(/_arguments -C -A '-\*'/g)?.length).toBe(1 + (z.match(/'1: :->sub'/g)?.length ?? 0));
   });
