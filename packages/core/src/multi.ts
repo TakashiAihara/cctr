@@ -1,5 +1,12 @@
 import type { Source } from "./source";
-import type { Record, SessionFilter, SessionMeta } from "./types";
+import {
+  type CountQuery,
+  type CountResult,
+  type Record,
+  type SessionFilter,
+  type SessionMeta,
+  emptyCount,
+} from "./types";
 
 export type HostError = { host: string; error: string };
 
@@ -21,6 +28,24 @@ export class MultiSource {
     });
     sessions.sort((a, b) => (b.lastTs ?? "").localeCompare(a.lastTs ?? ""));
     return { sessions: filter.limit ? sessions.slice(0, filter.limit) : sessions, errors };
+  }
+
+  /** Every host counts its own records; the results add up key by key. */
+  async count(q: CountQuery): Promise<{ result: CountResult; errors: HostError[] }> {
+    const results = await Promise.allSettled(this.sources.map((s) => s.count(q)));
+    const result = emptyCount();
+    const errors: HostError[] = [];
+    results.forEach((r, i) => {
+      if (r.status === "rejected") {
+        errors.push({ host: this.sources[i]!.host, error: errMsg(r.reason, this.sources[i]!.host) });
+        return;
+      }
+      result.sessions += r.value.sessions;
+      result.records += r.value.records;
+      result.activeMs += r.value.activeMs;
+      for (const [k, n] of Object.entries(r.value.counts)) result.counts[k] = (result.counts[k] ?? 0) + n;
+    });
+    return { result, errors };
   }
 
   /**

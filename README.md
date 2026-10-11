@@ -35,6 +35,20 @@ cctr path <id>                           # the cwd it ran in, for cd "$(cctr pat
 cctr meta                                # what this cctr knows about itself
 ```
 
+### Statistics
+
+Every one takes `--cwd`, `--local`, `--since` and `--host`. Usage is counted once per API message.
+
+```bash
+cctr tokens                              # token totals
+cctr stats --by day --format table       # session | day | repo | model
+cctr tools --expand-skills               # tool calls, Skill split by skill name
+cctr bash --top 20 --format table        # leading word of Bash commands (--full for whole commands)
+cctr files --format table                # most-edited files
+cctr commands --source slash             # typed /commands (tool: Skill calls, all: both)
+cctr activity --format table             # active time and an hour-of-day histogram, local time
+```
+
 ### Other machines
 
 Register a machine once, then read it like the local one. Two ways to reach it:

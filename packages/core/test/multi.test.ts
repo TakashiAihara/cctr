@@ -12,6 +12,7 @@ import {
   type SessionMeta,
   type Source,
   type SourceMeta,
+  emptyCount,
   emptyUsage,
   lines,
   listSessionFiles,
@@ -79,6 +80,10 @@ function fake(host: string, sessions: SessionMeta[], fail?: string): Source {
       if (fail) boom();
       const s = sessions.find((s) => s.id === id);
       if (s) yield { type: "user", raw: { type: "user", from: host }, sessionId: s.id };
+    },
+    async count() {
+      if (fail) boom();
+      return emptyCount();
     },
   };
 }

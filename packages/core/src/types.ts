@@ -64,6 +64,17 @@ export type SessionFilter = {
   limit?: number;
 };
 
+export type CountKind = "bash" | "bash-full" | "files" | "slash" | "skill" | "hour";
+
+export type CountQuery = { kind: CountKind; cwd?: string; since?: string };
+
+/** One count over records. `records` counts records with a timestamp; `activeMs` sums each session's first-to-last span. */
+export type CountResult = { sessions: number; records: number; activeMs: number; counts: { [key: string]: number } };
+
+export function emptyCount(): CountResult {
+  return { sessions: 0, records: 0, activeMs: 0, counts: {} };
+}
+
 export function emptyUsage(): Usage {
   return { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
 }

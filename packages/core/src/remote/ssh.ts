@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { Readable } from "node:stream";
 import { parseLine } from "../records";
 import type { Source, SourceMeta } from "../source";
-import type { Record, SessionFilter, SessionMeta } from "../types";
+import type { CountQuery, CountResult, Record, SessionFilter, SessionMeta } from "../types";
 import { lines } from "./http";
 
 export type SshSourceOptions = {
@@ -79,6 +79,14 @@ export class SshSource implements Source {
       // a consumer that stops early (reading the first few records) must not leave an ssh behind
       if (!drained) child.kill("SIGTERM");
     }
+  }
+
+  async count(q: CountQuery): Promise<CountResult> {
+    // global options before the subcommand, so the remote counts only its own files
+    const args = ["--host", "local", "count", q.kind];
+    if (q.cwd) args.push("--cwd", q.cwd);
+    if (q.since) args.push("--since", q.since);
+    return JSON.parse(await this.run(args)) as CountResult;
   }
 
   private async run(args: string[]): Promise<string> {
