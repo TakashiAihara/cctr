@@ -1,6 +1,6 @@
 # cctr
 
-Claude Code transcripts, as data. `cctr` reads the session JSONL that Claude Code writes under `~/.claude/projects/` and gives you the same view of it from a CLI, an MCP server, a Web UI, and a TUI — on this machine and on every other machine you register.
+Claude Code transcripts, as data. `cctr` reads the session JSONL that Claude Code writes under `~/.claude/projects/` and lets you list, search and read it from one CLI — on this machine and on every other machine you register, over SSH or HTTP. An MCP server, a Web UI and a TUI over the same data are next on the roadmap.
 
 It is the successor of [cchist](https://github.com/TakashiAihara/cchist) and will fold into [ccx](https://github.com/TakashiAihara/ccx). The roadmap is in [docs/ROADMAP.md](docs/ROADMAP.md).
 
